@@ -226,12 +226,14 @@ with tab1:
             """
         )
 
-        st.caption(
-            "Each point in this region attains the minimum value of the rectilinear objective function."
+        st.markdown(
+            "<p style='text-align:center; font-size:0.85em; color:gray;'>"
+            "All points within this region are optimal and yield the same minimum rectilinear cost."
+            "</p>",
+            unsafe_allow_html=True
         )
 
-
-# --------------------------------------------------
+#----------------------------------------------
 # TAB 2: Rectilinear (Median Method)
 # --------------------------------------------------
 with tab2:
@@ -649,6 +651,6 @@ with tab5:
 
 # --------------------------------------------------
 # Footer
-# --------------------------------------------------
+# ------------------------------------------------
 st.markdown("---")
 st.caption("Facility Location App by — Ankit Behera")
