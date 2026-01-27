@@ -86,12 +86,13 @@ for i in range(m):
 # --------------------------------------------------
 # Tabs
 # --------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
     [
         "Rectilinear (Graphical Approach)",
         "Rectilinear (Median Method)",
         "Iso-Contours",
-        "Euclidean Models",
+        "Euclidean Models (L2² and L2)",
+        "Minkowski distance(Lp)",
         "Comparison"
     ]
 )
@@ -233,7 +234,10 @@ with tab1:
             unsafe_allow_html=True
         )
 
-#----------------------------------------------
+#
+
+
+# --------------------------------------------------
 # TAB 2: Rectilinear (Median Method)
 # --------------------------------------------------
 with tab2:
@@ -481,7 +485,7 @@ with tab3:
 # TAB 4: Euclidean Models
 # --------------------------------------------------
 with tab4:
-    st.subheader("Euclidean Distance Models")
+    st.subheader("Euclidean Distance Models - (L1 & L2)")
 
     # ---- two-column layout ----
     col1, col2 = st.columns(2)
@@ -593,9 +597,200 @@ with tab4:
             st.dataframe(hist_df, hide_index=True)
 
 # --------------------------------------------------
-# TAB 5: Comparison
-# --------------------------------------------------
+# Minkowski distance Model (Lp) 
+# -----------------------------------------
 with tab5:
+    st.subheader("Minkowski Distance Model (Lp)")
+
+    # ---- Two-column layout ----
+    left_col, right_col = st.columns([1.8, 1.2])
+
+    # ============================
+    # LEFT COLUMN: Theory + Inputs
+    # ============================
+    with left_col:
+        st.markdown(
+            """
+            This model generalizes **L1**, **L2**, and **L∞** distances
+            using the **Lp (Minkowski) norm**.
+            """
+        )
+
+        st.markdown("### Solution Method: Gradient Descent")
+
+        st.markdown(
+            """
+            For general values of **p**, the Minkowski objective function does not admit
+            a closed-form solution. Therefore, the problem is solved using
+            **Gradient Descent**, an iterative numerical optimization method.
+            """
+        )
+
+        # ---- p selector ----
+        p = st.slider(
+            "Select value of p (integer)",
+            min_value=1,
+            max_value=100,
+            step=1,
+            value=2
+        )
+
+        # ---- alpha selector ----
+        alpha = st.slider(
+            "Step size (α)",
+            min_value=0.001,
+            max_value=0.5,
+            value=0.1,
+            step=0.001,
+            format="%.3f"
+        )
+
+        st.markdown("**Meaning of the step size (α):**")
+
+        st.markdown(
+            """
+            - **α (alpha)** controls the magnitude of movement in the direction of the
+              negative gradient.
+            - Smaller values of α lead to **stable but slower convergence**.
+            - Larger values of α lead to **faster convergence**, but may cause
+              **oscillations or divergence**.
+            """
+        )
+
+        # ---- Objective function ----
+        st.latex(
+            r"""
+            \min_{x,y} \; f_p(x,y)
+            =
+            \sum_{i=1}^{m} w_i
+            \left(
+            |x-a_i|^p + |y-b_i|^p
+            \right)^{1/p}
+            """
+        )
+
+        # ---- Initial point ----
+        st.markdown("**Initial point:**")
+
+        st.latex(
+            r"""
+            x^{(0)} =
+            \frac{\sum_{i=1}^{m} w_i a_i}{\sum_{i=1}^{m} w_i},
+            \qquad
+            y^{(0)} =
+            \frac{\sum_{i=1}^{m} w_i b_i}{\sum_{i=1}^{m} w_i}
+            """
+        )
+
+        # ---- Iterative update ----
+        st.markdown("**Iterative optimization idea:**")
+
+        st.latex(
+            r"""
+            (x^{(k)}, y^{(k)})
+            =
+            (x^{(k-1)}, y^{(k-1)})
+            -
+            \alpha \nabla f_p(x^{(k-1)}, y^{(k-1)})
+            """
+        )
+        st.latex(
+            r"""
+            \nabla f_p\!\left(x^{(k)},y^{(k)}\right)
+            =
+            \sum_{i=1}^{m}
+            w_i
+            \frac{
+            \begin{pmatrix}
+            |x^{(k)}-a_i|^{p-1}\mathrm{sgn}(x^{(k)}-a_i), \\
+            |y^{(k)}-b_i|^{p-1}\mathrm{sgn}(y^{(k)}-b_i)
+            \end{pmatrix}
+            }{
+            \left(
+            |x^{(k)}-a_i|^p + |y^{(k)}-b_i|^p
+            \right)^{\frac{p-1}{p}}
+            }
+            """
+        )
+
+        st.markdown("**Special cases:**")
+
+        st.latex(
+            r"""
+            \begin{aligned}
+            p = 1 &\Rightarrow \text{Rectilinear (L1)} \\
+            p = 2 &\Rightarrow \text{Euclidean (L2)} \\
+            p \to \infty &\Rightarrow \text{Chebyshev ($L{\infty}$)}
+            \end{aligned}
+            """
+        )
+
+    # ============================
+    # RIGHT COLUMN: Visualization
+    # ============================
+    alpha_ref = 0.1  # fixed alpha for path computation
+    
+    with right_col:
+        # ---- Blue path (fixed alpha) ----
+        path_x = []
+        path_y = []
+    
+        for p_val in range(1, p + 1):
+            res_tmp = slv.solve_single_facility_Lp(
+                data,
+                p_val,
+                alpha=alpha_ref
+            )
+            path_x.append(float(res_tmp["x_opt"]))
+            path_y.append(float(res_tmp["y_opt"]))
+    
+        # ---- Red point (user-selected alpha) ----
+        res_Lp = slv.solve_single_facility_Lp(
+            data,
+            p,
+            alpha=alpha
+        )
+    
+        x_opt = float(res_Lp["x_opt"])
+        y_opt = float(res_Lp["y_opt"])
+        obj_val = float(res_Lp["obj"])
+    
+        st.markdown("### Optimal Solution")
+    
+        st.write(
+            "**Optimal location:**",
+            (round(x_opt, 4), round(y_opt, 4))
+        )
+    
+        st.write(
+            "**Objective value:**",
+            round(obj_val, 4)
+        )
+    
+        fig = slv.plot_Lp_solution_path(
+            data,
+            path_x,
+            path_y,
+            x_opt,
+            y_opt,
+            p
+        )
+    
+        st.pyplot(fig)
+    
+        st.caption(
+            "The blue trajectory shows the optimal location as p increases "
+            "using a fixed step size. The red point shows the current solution "
+            "obtained with the selected α."
+        )
+
+
+
+# --------------------------------------------------
+# TAB 6: Comparison
+# --------------------------------------------------
+
+with tab6:
     st.subheader("Comparison of Distance Models")
 
     # ---- two-column layout ----
@@ -651,6 +846,6 @@ with tab5:
 
 # --------------------------------------------------
 # Footer
-# ------------------------------------------------
+# ---------------------------------------
 st.markdown("---")
-st.caption("Facility Location App by — Ankit Behera")
+st.caption("Facility Location App by — Ankit Behera, IIT Kharagpur")
