@@ -472,3 +472,128 @@ def plot_piecewise_L1(values, func, label):
     ax.grid(True, linestyle="--", alpha=0.5)
 
     return fig, xs[min_idx], ys[min_idx]
+
+# Lp Distance Problem
+def solve_single_facility_Lp(data, p, alpha=0.1, tol=1e-6, max_iter=500):
+    """
+    Minisum Single Facility Location
+    with Lp distance (p >= 1)
+    Solved by Gradient Descent
+    """
+
+    # Initial point: weighted centroid
+    total_w = sum(w for _, _, w in data)
+    x = sum(w * a for a, _, w in data) / total_w
+    y = sum(w * b for _, b, w in data) / total_w
+
+    for _ in range(max_iter):
+        grad_x = 0.0
+        grad_y = 0.0
+
+        for a, b, w in data:
+            dx = x - a
+            dy = y - b
+            dist_p = (abs(dx)**p + abs(dy)**p)**(1/p)
+
+            if dist_p < tol:
+                continue
+
+            grad_x += w * abs(dx)**(p-1) * np.sign(dx) / dist_p**(p-1)
+            grad_y += w * abs(dy)**(p-1) * np.sign(dy) / dist_p**(p-1)
+
+        x_new = x - alpha * grad_x
+        y_new = y - alpha * grad_y
+
+        if np.hypot(x_new - x, y_new - y) < tol:
+            break
+
+        x, y = x_new, y_new
+
+    obj_val = sum(
+        w * (abs(x - a)**p + abs(y - b)**p)**(1/p)
+        for a, b, w in data
+    )
+
+    return {
+        "x_opt": x,
+        "y_opt": y,
+        "obj": obj_val
+    }
+
+def plot_Lp_solution(data, x_opt, y_opt, p, fig_size=(6, 6)):
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    # Plot existing facilities
+    for i, (a, b, w) in enumerate(data, start=1):
+        ax.plot(a, b, 'ko', markersize=4)
+        ax.text(
+            a + 0.1,
+            b + 0.1,
+            f"w{i}={w:g}",
+            fontsize=9
+        )
+
+    # Plot optimal location
+    ax.plot(
+        x_opt,
+        y_opt,
+        'rs',
+        markersize=8,
+        label=f"Lp optimum (p={p})"
+    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, linestyle="--", alpha=0.6)
+    ax.set_xlabel("x-axis")
+    ax.set_ylabel("y-axis")
+    ax.set_title(f"Minkowski (Lp) Optimal Location (p = {p})")
+    ax.legend(loc="best", frameon=False)
+    ax.margins(0.15)
+
+    return fig
+
+def plot_Lp_solution_path(
+    data,
+    path_x,
+    path_y,
+    x_current,
+    y_current,
+    p_current,
+    fig_size=(6, 6)
+):
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    # Existing facilities
+    for i, (a, b, w) in enumerate(data, start=1):
+        ax.plot(a, b, 'ko', markersize=4)
+        ax.text(a + 0.1, b + 0.1, f"w{i}={w:g}", fontsize=9)
+
+    # Blue path (previous p values)
+    if len(path_x) > 1:
+        ax.plot(
+            path_x[:-1],
+            path_y[:-1],
+            'bo-',
+            linewidth=1.5,
+            markersize=4,
+            label="Optimal path (fixed α)"
+        )
+
+    # Red point (current solution with user-selected α)
+    ax.plot(
+        x_current,
+        y_current,
+        'rs',
+        markersize=8,
+        label=f"Current solution (p={p_current}, user α)"
+    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, linestyle="--", alpha=0.6)
+    ax.set_xlabel("x-axis")
+    ax.set_ylabel("y-axis")
+    ax.set_title("Lp Optimal Location Trajectory")
+    ax.legend(loc="best", frameon=False)
+    ax.margins(0.15)
+
+    return fig
