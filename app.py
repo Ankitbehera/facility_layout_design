@@ -10,7 +10,8 @@ import solver as slv
 # --------------------------------------------------
 st.set_page_config(
     page_title="Minisum Single Facility Location",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 st.title("Minisum Single Facility Location Problem")
@@ -98,10 +99,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
 # --------------------------------------------------
 # TAB 1: Rectilinear (Graphical Approch)
 # --------------------------------------------------
-
-# --------------------------------------------------
-# TAB 1: Rectilinear (Graphical Approach)
-# --------------------------------------------------
 with tab1:
     st.subheader("Rectilinear Distance (L1) – Graphical Approach")
 
@@ -112,6 +109,7 @@ with tab1:
     x_low, x_high = res_L1["x_range"]
     y_low, y_high = res_L1["y_range"]
 
+    st.latex(r"\min_{x,y} f_{L1}(x,y) = \sum_{i=1}^{m} w_i \big(|x-a_i| + |y-b_i|\big)")
     st.markdown(
         """
         Writing the functions $f_1(x)$ and $f_2(y)$ such that the
@@ -238,7 +236,7 @@ with tab1:
 # --------------------------------------------------
 with tab2:
     st.subheader("Rectilinear Distance (L1) – Median Method")
-
+    st.latex(r"\min_{x,y} f_{L1}(x,y) = \sum_{i=1}^{m} w_i \big(|x-a_i| + |y-b_i|\big)")
     # --------------------------------------------------
     # Solve once (used everywhere below)
     # --------------------------------------------------
