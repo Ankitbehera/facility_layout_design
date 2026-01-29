@@ -73,8 +73,22 @@ for i in range(m):
         b0 = 10 * (i + 1)
         w0 = 1.0 / m
 
-    a = col1.number_input(f"a{i+1}", key=f"a{i}", value=a0)
-    b = col2.number_input(f"b{i+1}", key=f"b{i}", value=b0)
+    a = col1.number_input(
+        f"a{i+1}",
+        key=f"a{i}",
+        value=float(a0),
+        step=0.1,
+        format="%.2f"
+    )
+    
+    b = col2.number_input(
+        f"b{i+1}",
+        key=f"b{i}",
+        value=float(b0),
+        step=0.1,
+        format="%.2f"
+    )
+
     w = col3.number_input(
         f"w{i+1}",
         key=f"w{i}",
