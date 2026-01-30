@@ -461,16 +461,16 @@ with tab3:
                 x0, y0 = 10 * (i + 1), 10 * (i + 1)
 
             x = col1.number_input(
-                f"b{i+1}",
-                key=f"b{i}",
+                f"x{i+1}",
+                key=f"x{i}",
                 value=float(x0),
                 step=0.5,
                 format="%.2f"
             )
 
             y = col2.number_input(
-                f"b{i+1}",
-                key=f"b{i}",
+                f"y{i+1}",
+                key=f"y{i}",
                 value=float(y0),
                 step=0.5,
                 format="%.2f"
