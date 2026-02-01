@@ -8,7 +8,7 @@ import matplotlib.patches as patches
 import ui_pages as pg
 
 st.set_page_config(
-        page_title="Facility Location App",
+        page_title="Facility Layout and Design App",
         layout="wide"
     )
 
