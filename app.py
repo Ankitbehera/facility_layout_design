@@ -68,9 +68,9 @@ elif page == "References":
 # Footer
 # ---------------------------------------
 st.markdown("---")
-st.caption("Facility Location App by — Ankit Behera")
+st.caption("Facility Layout and Design App by — Ankit Behera")
 st.caption(
-    "Course: Facility Location and Design | "
+    "Course: Facility Layout and Design | "
     "Department of Industrial & Systems Engineering | "
     "Indian Institute of Technology Kharagpur"
 )
