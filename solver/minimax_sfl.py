@@ -180,54 +180,35 @@ def circle_from_three_points(p, q, r):
     return (ux, uy, radius)
 
 
-def contains_all(circle, points):
+def contains(circle, p, eps=1e-9):
     cx, cy, r = circle
-    for p in points:
-        if dist((cx, cy), p) > r + 1e-9:
-            return False
-    return True
+    return dist((cx, cy), p) <= r + eps
 
 
 def solve_minimax_sfl_L2_elzinga_hearn(points):
-    """
-    Minimax Single Facility Location
-    Euclidean distance
-    Elzinga–Hearn geometric algorithm
-    """
-
-    if len(points) == 0:
-        raise ValueError("No demand points provided.")
-
-    if len(points) == 1:
-        x, y = points[0]
-        return {"x": x, "y": y, "Z": 0.0}
-
-    # Step 1: start with any two points
-    points = list(points)
+    """ Minimax Single Facility Location Euclidean distance Elzinga–Hearn geometric algorithm """
+    points = points[:]
     random.shuffle(points)
 
-    circle = circle_from_two_points(points[0], points[1])
+    c = circle_from_two_points(points[0], points[1])
 
     for i in range(len(points)):
-        if not contains_all(circle, points[:i+1]):
-            # Step 2–4 logic
-            circle = circle_from_two_points(points[i], points[0])
+        if not contains(c, points[i]):
+            c = (points[i][0], points[i][1], 0.0)
 
             for j in range(i):
-                if not contains_all(circle, points[:i+1]):
-                    circle = circle_from_two_points(points[i], points[j])
+                if not contains(c, points[j]):
+                    c = circle_from_two_points(points[i], points[j])
 
                     for k in range(j):
-                        if not contains_all(circle, points[:i+1]):
-                            c = circle_from_three_points(
+                        if not contains(c, points[k]):
+                            temp = circle_from_three_points(
                                 points[i], points[j], points[k]
                             )
-                            if c is not None:
-                                circle = c
+                            if temp is not None:
+                                c = temp
 
-    cx, cy, r = circle
-    return {"x": cx, "y": cy, "Z": r}
-
+    return {"x": c[0], "y": c[1], "Z": c[2]}
 
 # =============================================================================
 # OBJECTIVE FUNCTION (FOR VERIFICATION)
@@ -328,19 +309,12 @@ def plot_minimax_solution_L2(data, result):
     # -----------------------------------------
     ax.scatter(xs, ys, c="black", s=40, label="Demand points", zorder=3)
 
-    # Label demand points (P1, P2, ...)
+    # Label demand points
     for i, (x, y) in enumerate(data):
-        ax.text(
-            x,
-            y,
-            f"P{i+1}",
-            fontsize=9,
-            ha="right",
-            va="bottom"
-        )
+        ax.text(x, y, f"P{i+1}", fontsize=9, ha="right", va="bottom")
 
     # -----------------------------------------
-    # Identify defining points (no labels!)
+    # Identify defining points
     # -----------------------------------------
     tol = 1e-6
     defining_pts = [
@@ -352,7 +326,7 @@ def plot_minimax_solution_L2(data, result):
         dx = [p[0] for p in defining_pts]
         dy = [p[1] for p in defining_pts]
 
-        # Subtle highlight: blue ring only
+        # Blue ring markers
         ax.scatter(
             dx,
             dy,
@@ -363,6 +337,24 @@ def plot_minimax_solution_L2(data, result):
             label="Defining points",
             zorder=4
         )
+
+        # -----------------------------------------
+        # Blue line joining defining points
+        # -----------------------------------------
+        if len(defining_pts) >= 2:
+            # Close the loop if 3 points (triangle)
+            x_line = dx + ([dx[0]] if len(defining_pts) == 3 else [])
+            y_line = dy + ([dy[0]] if len(defining_pts) == 3 else [])
+
+            ax.plot(
+                x_line,
+                y_line,
+                color="blue",
+                linewidth=1.5,
+                linestyle="-",
+                zorder=3.5,
+                label="Defining-point connection"
+            )
 
     # -----------------------------------------
     # Plot optimal facility
@@ -415,6 +407,7 @@ def plot_minimax_solution_L2(data, result):
     )
 
     return fig
+
 
 def plot_minimax_solution_L2_interactive(data, result, show_labels=False):
     xs = [p[0] for p in data]
