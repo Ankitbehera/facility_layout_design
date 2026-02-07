@@ -9,11 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import solver.minisum_sfl as slv
 import io
-
-import io
-import pandas as pd
-import streamlit as st
-
+import pulp
 
 def build_inputs():
     # --------------------------------------------------
@@ -131,16 +127,16 @@ def build_inputs():
 def show_minisum_sfl(data):
     st.title("Minisum Single Facility Location Problem")
     
-    st.markdown(
-    """
-    This app solves the **Minisum Single Facility Location Problem** using:
-    - Rectilinear (L1) distance — *Graphical Approch*
-    - Rectilinear (L1) distance — *Median Method*
-    - Euclidean (L2) distance — *Weiszfeld Method*
-    - Squared Euclidean (L2²) distance — *Centroid*
-    - Minkowski Distance Model (Lp) — *Gradient Descent*
-    """
-    )
+    # st.markdown(
+    # """
+    # This app solves the **Minisum Single Facility Location Problem** using:
+    # - Rectilinear (L1) distance — *Graphical Approch*
+    # - Rectilinear (L1) distance — *Median Method*
+    # - Euclidean (L2) distance — *Weiszfeld Method*
+    # - Squared Euclidean (L2²) distance — *Centroid*
+    # - Minkowski Distance Model (Lp) — *Gradient Descent*
+    # """
+    # )
     
     if "plot_iso" not in st.session_state:
         st.session_state.plot_iso = True
@@ -159,17 +155,176 @@ def show_minisum_sfl(data):
     # --------------------------------------------------
     # Tabs
     # --------------------------------------------------
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    tab0,tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         [
+            "Overview",
             "Rectilinear (Graphical Approach)",
             "Rectilinear (Median Method)",
             "Iso-Contours",
             "Euclidean Models (L2² and L2)",
             "Minkowski distance(Lp)",
-            "Comparison"
+            "Comparison",
+            "Equivalent LP (L1 Minisum)"
         ]
     )
+    # --------------------------------------------------
+    # TAB 0: Overview
+    # --------------------------------------------------    
     
+    with tab0:
+        st.subheader("Single-Facility Minisum Location Problem")
+    
+        left_col, right_col = st.columns([2, 0.8])
+    
+        # ============================
+        # LEFT COLUMN — EXPLANATION
+        # ============================
+        with left_col:
+            st.markdown(
+                """
+            
+                The **Minisum Single Facility Location Problem** determines the location
+                of **one new facility** such that the **total weighted distance**
+                to all existing facilities is minimized.
+    
+                This model is widely used for:
+                - Warehouses and distribution centers  
+                - Machines inside factories  
+                - Service facilities with frequent interactions  
+    
+                ---
+                """
+            )    
+            st.markdown(
+                """
+                ### Rectilinear Minisum Single Facility Location Problem (L1)
+            
+                In the **Minisum Single Facility Location Problem**, the objective is to locate
+                a new facility at $(x,y)$ such that the **total weighted rectilinear distance**
+                to all existing facilities is minimized.
+            
+                The mathematical formulation is:
+                """
+            )
+            
+            st.latex(
+                r"""
+                \min_{x,y} \; f(x,y)
+                =
+                \sum_{i=1}^{m}
+                w_i \left(
+                |x-a_i| + |y-b_i|
+                \right)
+                """
+            )
+            
+            st.markdown(
+                """
+                #### Interpretation
+            
+                - Each existing facility $i$ is located at $(a_i, b_i)$
+                - $w_i$ represents the **intensity of interaction**
+                  (e.g., number of trips, flow, or demand)
+                - Rectilinear distance assumes **movement only along horizontal and vertical directions**
+                - The objective minimizes the **total cost of movement**.
+            
+                Because rectilinear distance is **additively separable**, the problem can be written as:
+                """
+            )
+            
+            st.latex(
+                r"""
+                f(x,y) = f_1(x) + f_2(y),
+                \quad
+                \text{where}
+                \quad
+                f_1(x)=\sum_{i=1}^{m} w_i |x-a_i|,
+                \quad
+                f_2(y)=\sum_{i=1}^{m} w_i |y-b_i|
+                """
+            )
+            
+            st.markdown(
+                """
+                This key property allows the **x-coordinate and y-coordinate**
+                of the optimal facility to be determined **independently**,
+                leading to graphical and median-based solution methods.
+                """
+            )
+
+            st.markdown(
+                """
+                ---
+                ### Input Data Instructions
+            
+                Use the **sidebar** by clicking the **>>** icon on the left-hand side of the screen.
+                Data can be provided using one of the following methods:
+            
+                **1. CSV Upload**
+                - File format: `a, b, w`
+                - Each row corresponds to one existing facility
+                - `w` represents the interaction weight (e.g., number of trips, flow, or demand)
+            
+                **2. Manual Input**
+                - Specify the number of existing facilities
+                - Enter the coordinates `ai`, `bi` and corresponding weights `wi`
+                - This option is suitable for classroom examples and exploratory analysis
+                """
+            )
+
+            show_data = st.checkbox("Show existing facility data")
+            if show_data:
+                df_data = pd.DataFrame(
+                    data,
+                    columns=["a (x-coordinate)", "b (y-coordinate)", "w (weight)"]
+                )
+            
+                st.markdown("#### Existing Facility Data")
+                st.dataframe(df_data, hide_index=True, use_container_width=True)
+                
+            st.markdown(    
+                """
+                ---
+                ### Solution Methods Implemented
+    
+                This page solves the problem using multiple distance models
+                and solution techniques:
+    
+                - **Rectilinear (L1)** — Graphical Approach  
+                - **Rectilinear (L1)** — Median Method  
+                - **Rectilinear (L1)** — Iso-Cost Contours  
+                - **Squared Euclidean (L2²)** — Centroid Method  
+                - **Euclidean (L2)** — Weiszfeld Algorithm  
+                - **Minkowski (Lp)** — Gradient Descent  
+                - **Equivalent Linear Programming Formulation**
+                """
+            )
+            
+        # ============================
+        # RIGHT COLUMN — NAVIGATION
+        # ============================
+        with right_col:
+            st.markdown("### Page Structure")
+        
+            st.markdown(
+                """
+                | Tab Name | Description |
+                |---------|-------------|
+                | **Overview** | Problem description, interpretation, and data input instructions |
+                | **Rectilinear (Graphical Approach)** | Visual solution using piecewise linear functions |
+                | **Rectilinear (Median Method)** | Closed-form solution using weighted medians |
+                | **Iso-Contours** | Iso-cost contours and near-optimal alternative locations |
+                | **Euclidean Models (L2² and L2)** | Centroid and Weiszfeld solution methods |
+                | **Minkowski distance (Lp)** | Generalized distance model solved via gradient descent |
+                | **Comparison** | Side-by-side comparison of all distance models |
+                | **Equivalent LP (L1 Minisum)** | Linear programming formulation of the L1 minisum problem |
+                """
+            )
+        
+            st.info(
+                "Use the tabs at the top of the page to navigate between sections."
+            )
+
     # --------------------------------------------------
     # TAB 1: Rectilinear (Graphical Approch)
     # --------------------------------------------------
@@ -936,4 +1091,316 @@ def show_minisum_sfl(data):
         with right_col:
             fig = slv.plot_optimal_locations(data, results)
             st.pyplot(fig)
+    # --------------------------------------------------
+    # TAB 7: Equivalent LP for Minisum SFL (L1)
+    # --------------------------------------------------
+    with tab7:
+        st.subheader("Equivalent Linear Programming Formulation")
+        
+        m = len(data)
     
+        st.markdown(
+            """
+            We convert the **Minisum Single Facility Location Problem**
+            with **rectilinear (L1) distance** into an **equivalent linear program**
+            by eliminating absolute values using auxiliary variables.
+            """
+        )
+    
+        # --------------------------------------------------
+        # Original Problem
+        # --------------------------------------------------
+        st.markdown("### Original Problem")
+    
+        st.latex(
+            r"""
+            \min_{x,y} \; f_{L1}(x,y)
+            =
+            \sum_{i=1}^{m} w_i
+            \big(
+            |x-a_i| + |y-b_i|
+            \big)
+            """
+        )
+    
+        # --------------------------------------------------
+        # Change of Variables Explanation
+        # --------------------------------------------------
+        st.markdown("### Change of Variables")
+    
+        st.markdown(
+            """
+            For each existing facility \\(i\\), define the following nonnegative variables:
+            """
+        )
+    
+        st.latex(
+            r"""
+            \begin{aligned}
+            r_i &: \text{amount by which the new facility is to the right of facility } i \\
+            s_i &: \text{amount by which the new facility is to the left of facility } i \\
+            u_i &: \text{amount by which the new facility is above facility } i \\
+            v_i &: \text{amount by which the new facility is below facility } i
+            \end{aligned}
+            """
+        )
+    
+        st.markdown(
+            """
+            These variables allow us to write absolute values as linear expressions:
+            """
+        )
+    
+        st.latex(
+            r"""
+            |x-a_i| = r_i + s_i,
+            \qquad
+            |y-b_i| = u_i + v_i
+            """
+        )
+        # --------------------------------------------------
+        # Final LP Statement
+        # --------------------------------------------------
+        st.markdown("### Equivalent Linear Program")
+    
+        st.latex(
+            r"""
+            \begin{aligned}
+            \min \quad &
+            \sum_{i=1}^{m} w_i
+            ( r_i + s_i + u_i + v_i ) \\
+            \text{s.t.} \quad &
+            x - r_i + s_i = a_i, \quad i=1,\ldots,m \\
+            &
+            y - u_i + v_i = b_i, \quad i=1,\ldots,m \\
+            &
+            r_i, s_i, u_i, v_i \ge 0, \quad i=1,\ldots,m \\
+            &
+            x, y \text{ unrestricted}
+            \end{aligned}
+            """
+        )
+        # --------------------------------------------------
+        # Equivalent LP Objective
+        # --------------------------------------------------
+        st.markdown("### Equivalent LP Objective Function")
+    
+        terms = [
+            rf"{w:g}(r_{{{i}}} + s_{{{i}}} + u_{{{i}}} + v_{{{i}}})"
+            for i, (_, _, w) in enumerate(data, start=1)
+        ]
+        
+        st.latex(
+            r"\min \; " + " + ".join(terms)
+        )
+    
+        # --------------------------------------------------
+        # Constraints (Expanded for all i)
+        # --------------------------------------------------
+        st.markdown("### Constraints")
+
+        col_x, col_y = st.columns([1.5, 1.5])
+        
+        # -----------------------------
+        # LEFT COLUMN: X-constraints
+        # -----------------------------
+        with col_x:
+            st.markdown("#### X-coordinate constraints")
+            for i, (a, _, _) in enumerate(data, start=1):
+                st.latex(
+                    rf"x - r_{{{i}}} + s_{{{i}}} = {a}"
+                )
+        
+        # -----------------------------
+        # RIGHT COLUMN: Y-constraints
+        # -----------------------------
+        with col_y:
+            st.markdown("#### Y-coordinate constraints")
+            for i, (_, b, _) in enumerate(data, start=1):
+                st.latex(
+                    rf"y - u_{{{i}}} + v_{{{i}}} = {b}"
+                )
+
+        # --------------------------------------------------
+        # Nonnegativity & Free Variables
+        # --------------------------------------------------
+        st.markdown("### Variable Restrictions")
+    
+        st.latex(
+            r"""
+            r_i,\; s_i,\; u_i,\; v_i \ge 0
+            \quad
+            \forall i = 1,2,\ldots,m
+            """
+        )
+    
+        st.latex(
+            r"""
+            x,\; y \;\; \text{unrestricted in sign}
+            """
+        )
+        # --------------------------------------------------
+        # Solve LP using PuLP (Optional)
+        # --------------------------------------------------
+        st.markdown("---")
+        solve_lp = st.checkbox("Solve this LP using PuLP")
+        
+        if solve_lp:
+            st.subheader("PuLP Solution")
+        
+            # -----------------------------
+            # Create LP problem
+            # -----------------------------
+            prob = pulp.LpProblem(
+                "Minisum_SFL_L1",
+                pulp.LpMinimize
+            )
+        
+            # -----------------------------
+            # Decision Variables
+            # -----------------------------
+            x = pulp.LpVariable("x", lowBound=None)
+            y = pulp.LpVariable("y", lowBound=None)
+        
+            r = {
+                i: pulp.LpVariable(f"r_{i}", lowBound=0)
+                for i in range(1, m + 1)
+            }
+            s = {
+                i: pulp.LpVariable(f"s_{i}", lowBound=0)
+                for i in range(1, m + 1)
+            }
+            u = {
+                i: pulp.LpVariable(f"u_{i}", lowBound=0)
+                for i in range(1, m + 1)
+            }
+            v = {
+                i: pulp.LpVariable(f"v_{i}", lowBound=0)
+                for i in range(1, m + 1)
+            }
+        
+            # -----------------------------
+            # Objective Function
+            # -----------------------------
+            prob += pulp.lpSum(
+                w * (r[i] + s[i] + u[i] + v[i])
+                for i, (_, _, w) in enumerate(data, start=1)
+            )
+        
+            # -----------------------------
+            # Constraints
+            # -----------------------------
+            for i, (a, b, _) in enumerate(data, start=1):
+                prob += x - r[i] + s[i] == a
+                prob += y - u[i] + v[i] == b
+        
+            # -----------------------------
+            # Solve
+            # -----------------------------
+            prob.solve(pulp.PULP_CBC_CMD(msg=False))
+        
+            # -----------------------------
+            # Results
+            # -----------------------------
+            st.markdown("### Optimal Solution")
+        
+            st.latex(
+                rf"""
+                x^* = {pulp.value(x):.4f},
+                \qquad
+                y^* = {pulp.value(y):.4f}
+                """
+            )
+        
+            st.latex(
+                rf"""
+                f^* = {pulp.value(prob.objective):.4f}
+                """
+            )
+        
+            # -----------------------------
+            # Decision Variable Table
+            # -----------------------------
+            rows = []
+        
+            for i in range(1, m + 1):
+                rows.append({
+                    "i": i,
+                    "r_i": pulp.value(r[i]),
+                    "s_i": pulp.value(s[i]),
+                    "u_i": pulp.value(u[i]),
+                    "v_i": pulp.value(v[i]),
+                })
+        
+            df_vars = pd.DataFrame(rows)
+        
+            st.markdown("### Decision Variable Values")
+            st.dataframe(
+                df_vars,
+                hide_index=True,
+                use_container_width=True
+            )
+        
+            st.caption(
+                "The PuLP solver returns one optimal solution of the linear program. "
+                "When the Median Method yields multiple optimal locations, "
+                "the LP selects a representative extreme point from the optimal solution set."
+            )
+            # --------------------------------------------------
+            # Active Constraints – Geometric Interpretation (Correct)
+            # --------------------------------------------------
+            st.markdown("### Active Constraints (Geometric Interpretation)")
+            
+            tol = 1e-6
+            rows = []
+            
+            for i, (a, b, _) in enumerate(data, start=1):
+                ri = pulp.value(r[i])
+                si = pulp.value(s[i])
+                ui = pulp.value(u[i])
+                vi = pulp.value(v[i])
+            
+                # ---- X direction ----
+                if ri > tol:
+                    x_relation = "Optimal x is to the RIGHT of facility"
+                elif si > tol:
+                    x_relation = "Optimal x is to the LEFT of facility"
+                else:
+                    x_relation = "Optimal x coincides with facility"
+                
+                # ---- Y direction ----
+                if ui > tol:
+                    y_relation = "Optimal y is ABOVE the facility"
+                elif vi > tol:
+                    y_relation = "Optimal y is BELOW the facility"
+                else:
+                    y_relation = "Optimal y coincides with facility"
+
+                rows.append({
+                    "Facility i": i,
+                    "Relative position in x-direction": x_relation,
+                    "Relative position in y-direction": y_relation
+                })
+            
+            df_active = pd.DataFrame(rows)
+            
+            st.dataframe(
+                df_active,
+                hide_index=True,
+                use_container_width=True
+            )
+
+            st.markdown(
+                """
+                **Interpretation of Active Constraints:**
+            
+                - If **rᵢ > 0**, the new facility lies **to the right** of facility *i*
+                - If **sᵢ > 0**, the new facility lies **to the left** of facility *i*
+                - If **uᵢ > 0**, the new facility lies **above** facility *i*
+                - If **vᵢ > 0**, the new facility lies **below** facility *i*
+            
+                Active constraints correspond to **binding absolute-value terms**
+                and determine the geometry of the LP optimal solution.
+                """
+            )
+            
