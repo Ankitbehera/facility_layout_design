@@ -213,7 +213,8 @@ def build_inputs_upload():
     # --------------------------------------------------
     input_mode = st.sidebar.radio(
         "Input Mode",
-        ["Manual Input", "Upload CSV Files"]
+        ["Manual Input", "Upload CSV Files"],
+        key="input_mode_mfl"
     )
 
     # ==================================================
@@ -223,13 +224,13 @@ def build_inputs_upload():
         st.sidebar.markdown("### Upload CSV Files")
 
         ef_file = st.sidebar.file_uploader(
-            "Existing Facilities CSV (a,b)",
+            "Existing Facilities CSV (columns: a, b)",
             type=["csv"],
             key="ef_csv"
         )
 
         w_file = st.sidebar.file_uploader(
-            "EF–NF Weight Matrix CSV (w_ji)",
+            "EF–NF Weight Matrix CSV ($w_{ji}$)",
             type=["csv"],
             key="w_csv"
         )
@@ -239,13 +240,17 @@ def build_inputs_upload():
             return None
 
         # -----------------------------
-        # Read Existing Facilities
+        # Existing Facilities
         # -----------------------------
         try:
             ef_df = pd.read_csv(ef_file)
 
             if list(ef_df.columns) != ["a", "b"]:
                 st.sidebar.error("EF CSV must have columns: a, b")
+                return None
+
+            if ef_df.isnull().any().any():
+                st.sidebar.error("EF CSV contains empty cells.")
                 return None
 
             ef_df = ef_df.astype(float)
@@ -261,7 +266,7 @@ def build_inputs_upload():
             return None
 
         # -----------------------------
-        # Read EF–NF Weights
+        # EF–NF Weights
         # -----------------------------
         try:
             w_df = pd.read_csv(w_file)
@@ -271,12 +276,11 @@ def build_inputs_upload():
                 return None
 
             w_df = w_df.astype(float)
-
             n = len(w_df)
 
             if w_df.shape[1] != m:
                 st.sidebar.error(
-                    "Number of EF columns in weight CSV must match EF CSV."
+                    "Number of columns in weight CSV must match EF CSV."
                 )
                 return None
 
@@ -290,7 +294,7 @@ def build_inputs_upload():
             return None
 
         # -----------------------------
-        # NF–NF Interaction (Manual only)
+        # NF–NF Interaction (manual)
         # -----------------------------
         st.sidebar.markdown("### NF–NF Interaction Weights $v_{jk}$")
 
@@ -303,15 +307,15 @@ def build_inputs_upload():
             for j in range(n):
                 for k in range(n):
                     if j >= k:
-                        v_input.iloc[j, k] = "—"
+                        v_input.iloc[j, k] = "auto-fill"
             st.session_state.v_input = v_input
 
         v_edit = st.sidebar.data_editor(
             st.session_state.v_input,
+            key="v_table_upload",
             num_rows="fixed",
             use_container_width=True
         )
-        st.session_state.v_input = v_edit
 
         v_df = pd.DataFrame(0.0, index=v_edit.index, columns=v_edit.columns)
         for j in range(n):
@@ -326,8 +330,10 @@ def build_inputs_upload():
         st.sidebar.caption(
             r"""
             **Notes on $v_{jk}$ interaction matrix:**
+
             • $v_{jk} = v_{kj}$  
             • $v_{jj} = 0$  
+            • Cells marked *auto-fill* are handled automatically  
             • Specify values only for $j < k$
             """
         )
@@ -346,10 +352,22 @@ def build_inputs_upload():
     st.sidebar.markdown("#### Manual Input")
 
     col_m, col_n = st.sidebar.columns(2)
+
     with col_m:
-        m = st.number_input("Number of existing facilities $m$", 1, step=1, value=3)
+        m = st.number_input(
+            "Number of existing facilities $m$",
+            min_value=1,
+            step=1,
+            value=3
+        )
+
     with col_n:
-        n = st.number_input("Number of new facilities $n$", 1, step=1, value=2)
+        n = st.number_input(
+            "Number of new facilities $n$",
+            min_value=1,
+            step=1,
+            value=2
+        )
 
     st.sidebar.caption(
         "Changing $m$ or $n$ will reset the corresponding input tables."
@@ -371,10 +389,10 @@ def build_inputs_upload():
 
     ef_df = st.sidebar.data_editor(
         st.session_state.ef_df,
+        key="ef_table_manual",
         num_rows="fixed",
         use_container_width=True
     )
-    st.session_state.ef_df = ef_df
 
     if ef_df.isnull().any().any():
         st.sidebar.error("Existing facility table contains empty cells.")
@@ -394,10 +412,10 @@ def build_inputs_upload():
 
     w_df = st.sidebar.data_editor(
         st.session_state.w_df,
+        key="w_table_manual",
         num_rows="fixed",
         use_container_width=True
     )
-    st.session_state.w_df = w_df
 
     if w_df.isnull().any().any():
         st.sidebar.error("EF–NF weight matrix contains empty cells.")
@@ -417,15 +435,15 @@ def build_inputs_upload():
         for j in range(n):
             for k in range(n):
                 if j >= k:
-                    v_input.iloc[j, k] = "—"
+                    v_input.iloc[j, k] = "auto-fill"
         st.session_state.v_input = v_input
 
     v_edit = st.sidebar.data_editor(
         st.session_state.v_input,
+        key="v_table_manual",
         num_rows="fixed",
         use_container_width=True
     )
-    st.session_state.v_input = v_edit
 
     v_df = pd.DataFrame(0.0, index=v_edit.index, columns=v_edit.columns)
     for j in range(n):
@@ -440,8 +458,10 @@ def build_inputs_upload():
     st.sidebar.caption(
         r"""
         **Notes on $v_{jk}$ interaction matrix:**
+
         • $v_{jk} = v_{kj}$  
         • $v_{jj} = 0$  
+        • Cells marked *auto-fill* are handled automatically  
         • Specify values only for $j < k$
         """
     )
@@ -454,17 +474,17 @@ def build_inputs_upload():
         "v": v_df
     }
 
-# ------------------------------------------------------------------------------
-# Page
-# ------------------------------------------------------------------------------
-
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
 def show_minisum_mfl(data):
+    if data is None:
+        st.warning("Please complete valid input data to proceed.")
+        return
+        
     st.title("Minisum Multi-Facility Location Problem")
 
-    # Plot styling (copied from SFL)
+    # Plot styling 
     plt.rcParams.update({
         "font.size": 10,
         "axes.titlesize": 11,
@@ -475,7 +495,7 @@ def show_minisum_mfl(data):
     })
 
     # --------------------------------------------------
-    # Tabs (As YOU defined)
+    # Tabs 
     # --------------------------------------------------
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Overview",
@@ -544,80 +564,409 @@ def show_minisum_mfl(data):
             """
         )
 
-        show_data = st.checkbox("Show Input Data Summary")
+        # --- Input Data Summary Section ---
+        show_data = st.checkbox("Show Input Data Summary", value=True)
 
         if show_data:
             st.markdown("### Input Data Summary")
+        
+            # Row 1: Existing Facilities
+            st.markdown("#### 1. Existing Facility Locations $P_i(a_i, b_i)$")
+            st.dataframe(data["ef"], use_container_width=True, height=200)
 
-            # --------------------------------------------------
-            # Existing Facilities
-            # --------------------------------------------------
-            with st.expander("Existing Facility Locations $(a_i, b_i)$", expanded=True):
-                st.dataframe(
-                    data["ef"],
-                    hide_index=False,
-                    use_container_width=True
-                )
+            # Row 2: Weights (Side-by-Side)
+            col_w, col_v = st.columns(2)
+        
+            with col_w:
+                st.markdown("#### 2. EF–NF Weights ($w_{ji}$)")
+                st.dataframe(data["w"], use_container_width=True)
+                st.caption("Interaction weights between New and Existing facilities.")
 
-            # --------------------------------------------------
-            # EF–NF Interaction Weights
-            # --------------------------------------------------
-            with st.expander("EF–NF Interaction Weights $w_{ji}$",expanded=True):
-                st.dataframe(
-                    data["w"],
-                    hide_index=False,
-                    use_container_width=True
-                )
+            with col_v:
+                st.markdown("#### 3. NF–NF Weights ($v_{jk}$)")
+                st.dataframe(data["v"], use_container_width=True)
+                st.caption("Interaction weights between pairs of New facilities.")
 
-            # --------------------------------------------------
-            # NF–NF Interaction Weights
-            # --------------------------------------------------
-            with st.expander("NF–NF Interaction Weights $v_{jk}$",expanded=True):
-                st.dataframe(
-                    data["v"],
-                    hide_index=False,
-                    use_container_width=True
-                )
+        st.divider()
 
-                st.caption(
-                    r"""
-                    $v_{jk} = v_{kj}$,  $v_{jj} = 0$  
-                    Only interactions between distinct new facilities are considered.
-                    """
-                )
-
+        # --- Solution Methods Section ---
         st.markdown("### Solution Methods Implemented")
-        st.markdown(
-            """
-            - **Rectilinear (L1)** — Equivalent Linear Programming  
-            - **Rectilinear (L1)** — Coordinate Descent  
-            - **Euclidean (L2² and L2)** — Iterative methods  
-            """
-        )
+    
+        col_m1, col_m2 = st.columns(2)
+    
+        with col_m1:
+            st.markdown("**Rectilinear Distance ($L_1$)**")
+            st.markdown(
+                """
+                * **Linear Programming (LP):** Uses auxiliary variables to find the global optimal solution.
+                * **Coordinate Descent:** An iterative approach using the weighted median method.
+                """
+            )
 
+        with col_m2:
+            st.markdown("**Euclidean Distance ($L_2$ / $L_2^2$)**")
+            st.markdown(
+                """
+                * **Squared Euclidean:** Solved using a system of linear equations (Weighted Average).
+                * **Standard Euclidean:** Solved via iterative gradient-based methods.
+                """
+            )
 
+        st.divider()
+    
     # =============================================================================
     # TAB 2: RECTILINEAR (LP)
     # =============================================================================
     with tab2:
-        st.subheader("Rectilinear Minisum — Linear Programming Formulation")
+        st.subheader("Equivalent Linear Programming Formulation")
 
-        st.markdown("### Problem Decomposition")
-        st.latex(
-            r"""
-            f(\mathbf{x},\mathbf{y}) = f_x(x_1,\dots,x_n) + f_y(y_1,\dots,y_n)
-            """
-        )
+        m = data["m"]
+        n = data["n"]
+        ef_df = data["ef"]
+        w_df = data["w"]
+        v_df = data["v"]
 
-        st.markdown("### Equivalent LP Formulation")
         st.markdown(
             """
-            Absolute values are eliminated using auxiliary variables
-            for EF–NF and NF–NF interactions.
+            We convert the **Minisum Multi-Facility Location Problem**
+            with **rectilinear (L1) distance** into an **equivalent linear program**
+            by eliminating absolute values using auxiliary variables. 
             """
         )
 
-        st.info("Expanded LP, constraints, and PuLP solver will be added here.")
+        # --------------------------------------------------
+        # Original Problem
+        # --------------------------------------------------
+        st.markdown("### Original Problem")
+        st.latex(
+            r"""
+            \min f(X, Y) = 
+            \sum_{1 \le j < k \le n} v_{jk} \left( |x_j - x_k| + |y_j - y_k| \right) 
+            + \sum_{j=1}^{n}\sum_{i=1}^{m} w_{ji} \left( |x_j - a_i| + |y_j - b_i| \right)
+            """
+        )
+
+        # --------------------------------------------------
+        # Change of Variables
+        # --------------------------------------------------
+        st.markdown("### Change of Variables")
+        st.write("We define non-negative auxiliary variables to linearize the absolute differences.")
+
+        col_vars_x, col_vars_y = st.columns(2)
+
+        with col_vars_x:
+            st.markdown("#### X-Coordinate Variables")
+            st.markdown("**1. NF-EF Interactions:**")
+            st.latex(
+                r"""
+                \begin{aligned}
+                r_{ji} &: \text{amount NF } j \text{ is to the RIGHT of EF } i \\
+                s_{ji} &: \text{amount NF } j \text{ is to the LEFT of EF } i
+                \end{aligned}
+                """
+            )
+            st.latex(r"|x_j - a_i| = r_{ji} + s_{ji}")
+            
+            st.markdown("**2. NF-NF Interactions:**")
+            st.latex(
+                r"""
+                \begin{aligned}
+                p_{jk} &: \text{amount NF } j \text{ is to the RIGHT of NF } k \\
+                q_{jk} &: \text{amount NF } j \text{ is to the LEFT of NF } k
+                \end{aligned}
+                """
+            )
+            st.latex(r"|x_j - x_k| = p_{jk} + q_{jk}")
+
+        with col_vars_y:
+            st.markdown("#### Y-Coordinate Variables")
+            st.markdown("**1. NF-EF Interactions:**")
+            st.latex(
+                r"""
+                \begin{aligned}
+                u_{ji} &: \text{amount NF } j \text{ is ABOVE EF } i \\
+                d_{ji} &: \text{amount NF } j \text{ is BELOW EF } i
+                \end{aligned}
+                """
+            )
+            st.latex(r"|y_j - b_i| = u_{ji} + d_{ji}")
+
+            st.markdown("**2. NF-NF Interactions:**")
+            st.latex(
+                r"""
+                \begin{aligned}
+                a_{jk} &: \text{amount NF } j \text{ is ABOVE NF } k \\
+                b_{jk} &: \text{amount NF } j \text{ is BELOW NF } k
+                \end{aligned}
+                """
+            )
+            st.latex(r"|y_j - y_k| = a_{jk} + b_{jk}")
+
+        # --------------------------------------------------
+        # Equivalent LP
+        # --------------------------------------------------
+        st.markdown("### Equivalent Linear Program")
+        
+        st.markdown("**Objective Function:**")
+        st.latex(
+            r"""
+            \begin{aligned}
+            \min Z = 
+            &\sum_{1 \le j < k \le n} v_{jk}(p_{jk} + q_{jk}) + \sum_{j=1}^{n}\sum_{i=1}^{m} w_{ji}(r_{ji} + s_{ji}) \\
+            + &\sum_{1 \le j < k \le n} v_{jk}(a_{jk} + b_{jk}) + \sum_{j=1}^{n}\sum_{i=1}^{m} w_{ji}(u_{ji} + d_{ji})
+            \end{aligned}
+            """
+        )
+        
+        st.markdown("**Constraints:**")
+        st.latex(
+            r"""
+            \begin{aligned}
+            x_j - x_k + p_{jk} - q_{jk} &= 0, & \forall 1 \le j < k \le n \\
+            x_j - r_{ji} + s_{ji} &= a_i, & \forall j, i \\
+            y_j - y_k + a_{jk} - b_{jk} &= 0, & \forall 1 \le j < k \le n \\
+            y_j - u_{ji} + d_{ji} &= b_i, & \forall j, i \\
+            \text{All variables} &\ge 0
+            \end{aligned}
+            """
+        )
+
+        # --------------------------------------------------
+        # Expanded Linear Objective Function
+        # --------------------------------------------------
+        st.markdown("### Expanded Linear Objective Function")
+        
+        obj_terms = []
+        
+        # X-Axis Terms
+        for j in range(n):
+            for k in range(j+1, n):
+                val = v_df.iloc[j, k]
+                if val > 0:
+                    obj_terms.append(f"{val:g}(p_{{{j+1}{k+1}}} + q_{{{j+1}{k+1}}})")
+        for j in range(n):
+            for i in range(m):
+                val = w_df.iloc[j, i]
+                if val > 0:
+                    obj_terms.append(f"{val:g}(r_{{{j+1}{i+1}}} + s_{{{j+1}{i+1}}})")
+        
+        # Y-Axis Terms
+        for j in range(n):
+            for k in range(j+1, n):
+                val = v_df.iloc[j, k]
+                if val > 0:
+                    obj_terms.append(f"{val:g}(a_{{{j+1}{k+1}}} + b_{{{j+1}{k+1}}})")
+        for j in range(n):
+            for i in range(m):
+                val = w_df.iloc[j, i]
+                if val > 0:
+                    obj_terms.append(f"{val:g}(u_{{{j+1}{i+1}}} + d_{{{j+1}{i+1}}})")
+        
+        if obj_terms:
+            # Join with + and line breaks for readability
+            equation_latex = r"\min Z = " + " + ".join(obj_terms)
+            st.latex(equation_latex)
+        else:
+            st.write("No non-zero weights defined.")
+
+        # --------------------------------------------------
+        # Constraints (Dynamic)
+        # --------------------------------------------------
+        st.markdown("### Constraints (Dynamic)")
+        
+        col_c1, col_c2 = st.columns(2)
+        
+        with col_c1:
+            st.markdown("**X-Coordinates**")
+            # EF Constraints
+            for j in range(n):
+                for i in range(m):
+                    st.latex(rf"x_{{{j+1}}} - r_{{{j+1}{i+1}}} + s_{{{j+1}{i+1}}} = {ef_df.iloc[i, 0]}")
+            # NF Constraints
+            for j in range(n):
+                for k in range(j+1, n):
+                    st.latex(rf"x_{{{j+1}}} - x_{{{k+1}}} + p_{{{j+1}{k+1}}} - q_{{{j+1}{k+1}}} = 0")
+            
+        with col_c2:
+            st.markdown("**Y-Coordinates**")
+            # EF Constraints
+            for j in range(n):
+                for i in range(m):
+                    st.latex(rf"y_{{{j+1}}} - u_{{{j+1}{i+1}}} + d_{{{j+1}{i+1}}} = {ef_df.iloc[i, 1]}")
+            # NF Constraints
+            for j in range(n):
+                for k in range(j+1, n):
+                    st.latex(rf"y_{{{j+1}}} - y_{{{k+1}}} + a_{{{j+1}{k+1}}} - b_{{{j+1}{k+1}}} = 0")
+
+        # --------------------------------------------------
+        # Solve LP
+        # --------------------------------------------------
+        st.markdown("---")
+        solve_lp = st.checkbox("Solve this LP using PuLP")
+
+        if solve_lp:
+            st.subheader("PuLP Solution")
+            
+            # Prepare data
+            existing_coords = data["ef"].values.tolist()
+            w_matrix = data["w"].values.tolist()
+            v_matrix = data["v"].values.tolist()
+
+            # Call Solver
+            with st.spinner("Solving Linear Program..."):
+                lp_result = slv.solve_minisum_mfl_lp(existing_coords, w_matrix, v_matrix)
+
+            # -----------------------------
+            # Optimal Solution Display
+            # -----------------------------
+            st.markdown("### Optimal Locations")
+            
+            res_df = pd.DataFrame(
+                lp_result["X_opt"],
+                columns=["x*", "y*"],
+                index=[f"NF{j+1}" for j in range(n)]
+            )
+            st.markdown(rf"##### Total Min Cost: {lp_result['obj']}")
+            st.table(res_df)
+            
+            # -----------------------------
+            # Decision Variable Tables
+            # -----------------------------
+            det_x = lp_result["details_x"]
+            det_y = lp_result["details_y"]
+            
+            # --- X Variables ---
+            st.markdown("### Decision Variables: X-Axis")
+            col_x1, col_x2 = st.columns(2)
+            
+            with col_x1:
+                st.markdown("**NF-EF (r, s)**")
+                rows_ef_x = []
+                for j in range(n):
+                    for i in range(m):
+                        rows_ef_x.append({
+                            "Var": f"NF{j+1}-EF{i+1}",
+                            "r (Right)": f"{det_x['r'][j][i]:.2f}",
+                            "s (Left)": f"{det_x['s'][j][i]:.2f}"
+                        })
+                st.dataframe(pd.DataFrame(rows_ef_x), hide_index=True, use_container_width=True)
+                
+            with col_x2:
+                st.markdown("**NF-NF (p, q)**")
+                rows_nf_x = []
+                if n > 1:
+                    for j in range(n):
+                        for k in range(j+1, n):
+                            rows_nf_x.append({
+                                "Var": f"NF{j+1}-NF{k+1}",
+                                "p (Right)": f"{det_x['p'][j][k]:.2f}",
+                                "q (Left)": f"{det_x['q'][j][k]:.2f}"
+                            })
+                    st.dataframe(pd.DataFrame(rows_nf_x), hide_index=True, use_container_width=True)
+                else:
+                    st.write("N/A (Only 1 New Facility)")
+
+            # --- Y Variables ---
+            st.markdown("### Decision Variables: Y-Axis")
+            col_y1, col_y2 = st.columns(2)
+            
+            with col_y1:
+                st.markdown("**NF-EF (u, d)**")
+                rows_ef_y = []
+                for j in range(n):
+                    for i in range(m):
+                        rows_ef_y.append({
+                            "Var": f"NF{j+1}-EF{i+1}",
+                            "u (Up)": f"{det_y['r'][j][i]:.2f}",   # Mapping internal 'r' to 'u'
+                            "d (Down)": f"{det_y['s'][j][i]:.2f}" # Mapping internal 's' to 'd'
+                        })
+                st.dataframe(pd.DataFrame(rows_ef_y), hide_index=True, use_container_width=True)
+
+            with col_y2:
+                st.markdown("**NF-NF (a, b)**")
+                rows_nf_y = []
+                if n > 1:
+                    for j in range(n):
+                        for k in range(j+1, n):
+                            rows_nf_y.append({
+                                "Var": f"NF{j+1}-NF{k+1}",
+                                "a (Above)": f"{det_y['p'][j][k]:.2f}", # Mapping internal 'p' to 'a'
+                                "b (Below)": f"{det_y['q'][j][k]:.2f}"  # Mapping internal 'q' to 'b'
+                            })
+                    st.dataframe(pd.DataFrame(rows_nf_y), hide_index=True, use_container_width=True)
+                else:
+                    st.write("N/A (Only 1 New Facility)")
+            st.markdown("**Interpretation of Active Constraints:**")
+
+            col_interp_x, col_interp_y = st.columns(2)
+
+            with col_interp_x:
+                st.markdown("**X-Direction (Horizontal Alignment):**")
+                st.markdown(
+                    """
+                    - If **rⱼᵢ > 0**, New Facility *j* is **to the right** of EF *i*.
+                    - If **sⱼᵢ > 0**, New Facility *j* is **to the left** of EF *i*.
+                    - If **pⱼₖ > 0**, New Facility *j* is **to the right** of NF *k*.
+                    - If **qⱼₖ > 0**, New Facility *j* is **to the left** of NF *k*.
+                    """
+                )
+
+            with col_interp_y:
+                st.markdown("**Y-Direction (Vertical Alignment):**")
+                st.markdown(
+                    """
+                    - If **uⱼᵢ > 0**, New Facility *j* lies **above** EF *i*.
+                    - If **dⱼᵢ > 0**, New Facility *j* lies **below** EF *i*.
+                    - If **aⱼₖ > 0**, New Facility *j* lies **above** NF *k*.
+                    - If **bⱼₖ > 0**, New Facility *j* lies **below** NF *k*.
+                    """
+                )
+
+            st.markdown(
+                """
+                **Note:** Active constraints occur when these variables are zero, indicating that a new facility 
+                **coincides** with another facility in that dimension. These alignments determine the optimal 
+                geometric mesh/grid of the solution.
+                """
+            )
+        
+            # --------------------------------------------------
+            # Plot LP
+            # --------------------------------------------------
+            st.markdown("---")
+            plot_lp = st.checkbox("Show Optimal Layout Graph")
+            
+            if plot_lp:
+                # Generate Plot
+                fig = slv.plot_mfl_solution(
+                    existing_coords, 
+                    lp_result['X_opt'], 
+                    w_matrix, 
+                    v_matrix
+                )
+                
+                # Two columns: Left for text, Right for plot
+                col_text, col_blank, col_plot = st.columns([1.2, 0.2,1.2]) 
+                
+                with col_text:
+                    st.markdown("### Visual Analysis")
+                    st.markdown(
+                        """
+                        The optimal layout in a rectilinear Multi-Facility problem is governed by two fundamental properties:
+
+                        1. **Coincidence Property:** An optimum $x$ (or $y$) coordinate for each new facility will coincide with the coordinate of at least one existing facility.
+                        
+                        2. **Median Property:** When located optimally, each new facility is positioned at the **median location** with respect to all other facilities—both new and existing—with which it interacts.
+
+                        **Interpretation of the "Mesh":**
+                        Because of these properties, the optimal solution is mathematically guaranteed to lie on a discrete grid or "mesh" formed by the intersection of the coordinate lines of all existing facilities. 
+                        
+                        As seen in the plot, the stars (New Facilities) gravitate toward these intersection points to satisfy the median condition, effectively "locking" onto the geometric mesh of the existing facilities ($P_i$).
+                        """
+                    )
+                    
+                with col_plot:
+                    st.pyplot(fig)
 
     # =============================================================================
     # TAB 3: COORDINATE DESCENT

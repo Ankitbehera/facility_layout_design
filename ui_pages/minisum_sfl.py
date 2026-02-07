@@ -1145,10 +1145,10 @@ def show_minisum_sfl(data):
         st.latex(
             r"""
             \begin{aligned}
-            r_i &: \text{amount by which the new facility is to the right of facility } i \\
-            s_i &: \text{amount by which the new facility is to the left of facility } i \\
-            u_i &: \text{amount by which the new facility is above facility } i \\
-            v_i &: \text{amount by which the new facility is below facility } i
+            r_i &: \text{amount by which the new facility is to the RIGHT of facility } i \\
+            s_i &: \text{amount by which the new facility is to the LEFT of facility } i \\
+            u_i &: \text{amount by which the new facility is ABOVE facility } i \\
+            v_i &: \text{amount by which the new facility is BELOW facility } i
             \end{aligned}
             """
         )
@@ -1191,7 +1191,7 @@ def show_minisum_sfl(data):
         # --------------------------------------------------
         # Equivalent LP Objective
         # --------------------------------------------------
-        st.markdown("### Equivalent LP Objective Function")
+        st.markdown("### Expanded Linear Objective Function")
     
         terms = [
             rf"{w:g}(r_{{{i}}} + s_{{{i}}} + u_{{{i}}} + v_{{{i}}})"
@@ -1199,7 +1199,7 @@ def show_minisum_sfl(data):
         ]
         
         st.latex(
-            r"\min \; " + " + ".join(terms)
+            r"\min f(x,y) =\; " + " + ".join(terms)
         )
     
         # --------------------------------------------------
@@ -1232,7 +1232,7 @@ def show_minisum_sfl(data):
         # --------------------------------------------------
         # Nonnegativity & Free Variables
         # --------------------------------------------------
-        st.markdown("### Variable Restrictions")
+        #st.markdown("### Variable Restrictions")
     
         st.latex(
             r"""

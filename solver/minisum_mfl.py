@@ -1,13 +1,14 @@
 """
 ================================================================================
-Minisum Multiple Facility Location Problem (Rectilinear Distance)
-Coordinate Descent + Weighted Median Method
-Based on IIT Kharagpur lecture notes (Dr. J. K. Jha)
+Minisum Multiple Facility Location Problem 
 ================================================================================
 """
 
 import numpy as np
-
+import pulp
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 
 # ------------------------------------------------------------------------------
 # Helper: weighted median
@@ -135,3 +136,213 @@ def solve_minisum_mfl(existing, w_ji, v_jk, max_iter=50, tol=1e-6):
         "history": history,
         "obj": minisum_cost(X, existing, w_ji, v_jk),
     }
+
+# ------------------------------------------------------------------------------
+# LP Solver (Rectilinear)
+# ------------------------------------------------------------------------------
+
+def solve_minisum_mfl_lp(existing, w_ji, v_jk):
+    """
+    Solves the Minisum MFL with Rectilinear distance using Linear Programming.
+    Decomposes the problem into independent X and Y models.
+    Returns detailed variable states for UI display.
+    """
+    m = len(existing)
+    n = len(w_ji)
+    
+    # Internal helper to solve for one dimension (x or y)
+    def solve_1d(coords, weights_ef, weights_nf):
+        prob = pulp.LpProblem("Minisum_MFL_1D", pulp.LpMinimize)
+        
+        # --- Decision Variables ---
+        x = [pulp.LpVariable(f"x_{j}", lowBound=None) for j in range(n)]
+        
+        # r_ji, s_ji for EF-NF interactions
+        r = [[pulp.LpVariable(f"r_{j}_{i}", lowBound=0) for i in range(m)] for j in range(n)]
+        s = [[pulp.LpVariable(f"s_{j}_{i}", lowBound=0) for i in range(m)] for j in range(n)]
+        
+        # p_jk, q_jk for NF-NF interactions (only for j < k)
+        p_aux = [[None for k in range(n)] for j in range(n)]
+        q_aux = [[None for k in range(n)] for j in range(n)]
+        
+        for j in range(n):
+            for k in range(j + 1, n):
+                p_aux[j][k] = pulp.LpVariable(f"p_{j}_{k}", lowBound=0)
+                q_aux[j][k] = pulp.LpVariable(f"q_{j}_{k}", lowBound=0)
+
+        # --- Objective Function ---
+        obj_ef = pulp.lpSum(weights_ef[j][i] * (r[j][i] + s[j][i]) for j in range(n) for i in range(m))
+        obj_nf = pulp.lpSum(weights_nf[j][k] * (p_aux[j][k] + q_aux[j][k]) for j in range(n) for k in range(j+1, n))
+        
+        prob += obj_ef + obj_nf
+
+        # --- Constraints ---
+        # 1. EF-NF constraints
+        for j in range(n):
+            for i in range(m):
+                prob += x[j] - r[j][i] + s[j][i] == coords[i]
+        
+        # 2. NF-NF constraints
+        for j in range(n):
+            for k in range(j + 1, n):
+                prob += x[j] - x[k] + p_aux[j][k] - q_aux[j][k] == 0
+        
+        prob.solve(pulp.PULP_CBC_CMD(msg=0))
+        
+        # --- Extract Detailed Results ---
+        res_x = [pulp.value(var) for var in x]
+        
+        # Extract auxiliary variables
+        res_r = [[pulp.value(r[j][i]) for i in range(m)] for j in range(n)]
+        res_s = [[pulp.value(s[j][i]) for i in range(m)] for j in range(n)]
+        
+        res_p = [[0.0 for k in range(n)] for j in range(n)]
+        res_q = [[0.0 for k in range(n)] for j in range(n)]
+        
+        for j in range(n):
+            for k in range(j+1, n):
+                res_p[j][k] = pulp.value(p_aux[j][k])
+                res_q[j][k] = pulp.value(q_aux[j][k])
+
+        # Active constraints check
+        active_ef = []
+        for j in range(n):
+            for i in range(m):
+                if abs(res_r[j][i]) < 1e-5 and abs(res_s[j][i]) < 1e-5:
+                    active_ef.append((j, i))
+                    
+        active_nf = []
+        for j in range(n):
+            for k in range(j + 1, n):
+                if abs(res_p[j][k]) < 1e-5 and abs(res_q[j][k]) < 1e-5:
+                    active_nf.append((j, k))
+
+        details = {
+            "coords": res_x,
+            "r": res_r,
+            "s": res_s,
+            "p": res_p,
+            "q": res_q,
+            "active_ef": active_ef,
+            "active_nf": active_nf,
+            "obj": pulp.value(prob.objective)
+        }
+        return details
+
+    a_coords = [p[0] for p in existing]
+    b_coords = [p[1] for p in existing]
+    
+    # Solve independent problems
+    res_x = solve_1d(a_coords, w_ji, v_jk)
+    res_y = solve_1d(b_coords, w_ji, v_jk)
+    
+    X_opt = list(zip(res_x["coords"], res_y["coords"]))
+    
+    return {
+        "X_opt": X_opt,
+        "obj": res_x["obj"] + res_y["obj"],
+        "details_x": res_x,
+        "details_y": res_y
+    }
+
+# ------------------------------------------------------------------------------
+# Plotting Function
+# ------------------------------------------------------------------------------
+
+def plot_mfl_solution(existing_coords, new_coords, w_matrix, v_matrix):
+    """
+    Generates a professional MFL solution plot with weight labels on connections.
+    """
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
+    
+    m = len(existing_coords)
+    n = len(new_coords)
+    
+    # Define color palette
+    color_ef = '#1f77b4'  # Professional Blue
+    color_nf = '#d62728'  # Professional Red
+    color_line_ef = '#aec7e8' # Light Blue for EF-NF
+    color_line_nf = '#7f7f7f' # Medium Gray for NF-NF
+
+    # -----------------------------
+    # 1. Plot Interactions & Weights
+    # -----------------------------
+    # EF-NF Interactions (w_ji)
+    for j in range(n):
+        nf_x, nf_y = new_coords[j]
+        for i in range(m):
+            weight = w_matrix[j][i]
+            if weight > 0:
+                ef_x, ef_y = existing_coords[i]
+                # Plot line
+                ax.plot([nf_x, ef_x], [nf_y, ef_y], color=color_line_ef, 
+                        linestyle='--', linewidth=1, alpha=0.7, zorder=1)
+                
+                # Calculate midpoint for weight label
+                mid_x, mid_y = (nf_x + ef_x) / 2, (nf_y + ef_y) / 2
+                ax.text(mid_x, mid_y, f'{weight:g}', color='#154360', fontsize=8,
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='none', pad=1))
+
+    # NF-NF Interactions (v_jk)
+    for j in range(n):
+        for k in range(j + 1, n):
+            weight = v_matrix[j][k]
+            if weight > 0:
+                nf1_x, nf1_y = new_coords[j]
+                nf2_x, nf2_y = new_coords[k]
+                # Plot line
+                ax.plot([nf1_x, nf2_x], [nf1_y, nf2_y], color=color_line_nf, 
+                        linestyle='-', linewidth=1.5, alpha=0.8, zorder=1)
+                
+                # Calculate midpoint for weight label
+                mid_x, mid_y = (nf1_x + nf2_x) / 2, (nf1_y + nf2_y) / 2
+                ax.text(mid_x, mid_y, f'{weight:g}', color='black', fontsize=9, fontweight='bold',
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
+
+    # -----------------------------
+    # 2. Plot Facilities
+    # -----------------------------
+    # Existing Facilities: Blue circle with a central dot
+    ef_xs = [p[0] for p in existing_coords]
+    ef_ys = [p[1] for p in existing_coords]
+    ax.scatter(ef_xs, ef_ys, facecolors='none', edgecolors=color_ef, 
+               marker='o', s=130, linewidths=1.5, zorder=2)
+    ax.scatter(ef_xs, ef_ys, c=color_ef, marker='o', s=15, zorder=3)
+
+    # New Facilities: Vibrant Red Star
+    nf_xs = [p[0] for p in new_coords]
+    nf_ys = [p[1] for p in new_coords]
+    ax.scatter(nf_xs, nf_ys, c=color_nf, marker='*', s=200, edgecolors='black', 
+               linewidths=0.5, zorder=4)
+
+    # -----------------------------
+    # 3. Annotations
+    # -----------------------------
+    for i, (x, y) in enumerate(existing_coords):
+        ax.annotate(f'$P_{{{i+1}}}$', (x, y), textcoords="offset points", 
+                    xytext=(0,-18), ha='center', fontsize=9, color=color_ef)
+
+    for j, (x, y) in enumerate(new_coords):
+        ax.annotate(f'$X_{{{j+1}}}$', (x, y), textcoords="offset points", 
+                    xytext=(0,12), ha='center', fontsize=10, fontweight='bold', color=color_nf)
+
+    # -----------------------------
+    # 4. Legend & Formatting
+    # -----------------------------
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Existing Facility ($P_i$)',
+               markerfacecolor=color_ef, markersize=10),
+        Line2D([0], [0], marker='*', color='w', label='New Facility ($X_j$)',
+               markerfacecolor=color_nf, markersize=12, markeredgecolor='black'),
+        Line2D([0], [0], color=color_line_ef, linestyle='--', label='$w_{ji}$ weights'),
+        Line2D([0], [0], color=color_line_nf, linestyle='-', label='$v_{jk}$ weights')
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1), fontsize=6)
+    
+    ax.set_title("Optimal Minisum Facility Layout", fontsize=9, pad=15)
+    ax.set_xlabel("X coordinate")
+    ax.set_ylabel("Y coordinate")
+    ax.grid(True, linestyle=':', alpha=0.4)
+    plt.tight_layout()
+    
+    return fig
