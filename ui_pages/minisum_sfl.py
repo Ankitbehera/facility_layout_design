@@ -17,55 +17,9 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.header("Input Data")
 
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload Minisum SFL data (CSV)",
-        type=["csv"]
-    )
-
-    has_header = st.sidebar.checkbox("My data has headers", value=True)
-
-    st.sidebar.markdown(
-        """
-        **CSV format:**  
-        - Columns: `a, b, w`  
-        - All values numeric  
-        - No empty cells  
-        """
-    )
-
-    # --------------------------------------------------
-    # CASE 1: CSV UPLOADED → USE CSV DIRECTLY
-    # --------------------------------------------------
-    if uploaded_file is not None:
-        try:
-            if has_header:
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_csv(uploaded_file, header=None)
-                df.columns = ["a", "b", "w"]
-
-            # Validation
-            if list(df.columns) != ["a", "b", "w"]:
-                st.sidebar.error("CSV must contain exactly columns: a, b, w")
-                return []
-
-            if df.isnull().any().any():
-                st.sidebar.error("CSV contains empty cells")
-                return []
-
-            df = df.astype(float)
-            st.sidebar.success("CSV loaded successfully")
-
-            return list(df.itertuples(index=False, name=None))
-
-        except Exception as e:
-            st.sidebar.error(f"Invalid CSV file: {e}")
-            return []
-
-    # --------------------------------------------------
-    # CASE 2: NO CSV → MANUAL INPUT
-    # --------------------------------------------------
-    st.sidebar.markdown("---")
+    # ==================================================
+    # CASE 1: MANUAL INPUT (DEFAULT)
+    # ==================================================
     st.sidebar.subheader("Manual Input")
 
     m = st.sidebar.number_input(
@@ -84,7 +38,7 @@ def build_inputs():
         (4.0, 0.0, 2.0),
     ]
 
-    data = []
+    manual_data = []
 
     for i in range(m):
         col1, col2, col3 = st.sidebar.columns(3)
@@ -119,9 +73,63 @@ def build_inputs():
             value=w0
         )
 
-        data.append((a, b, w))
+        manual_data.append((a, b, w))
 
-    return data
+    # ==================================================
+    # CASE 2: CSV UPLOAD (OVERRIDES MANUAL)
+    # ==================================================
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Upload CSV (Optional)")
+
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload Minisum SFL data (CSV)",
+        type=["csv"]
+    )
+
+    has_header = st.sidebar.checkbox("My data has headers", value=True)
+
+    st.sidebar.markdown(
+        """
+        **CSV format:**  
+        - Columns: `a, b, w`  
+        - All values numeric  
+        - No empty cells  
+        """
+    )
+
+    if uploaded_file is not None:
+        try:
+            # ---- Read CSV ----
+            if has_header:
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_csv(uploaded_file, header=None)
+                df.columns = ["a", "b", "w"]
+
+            # ---- Validation (EXACTLY as before) ----
+            if list(df.columns) != ["a", "b", "w"]:
+                st.sidebar.error("CSV must contain exactly columns: a, b, w")
+                return []
+
+            if df.isnull().any().any():
+                st.sidebar.error("CSV contains empty cells")
+                return []
+
+            # ---- Type conversion ----
+            df = df.astype(float)
+
+            st.sidebar.success("CSV loaded successfully (manual input ignored)")
+            return list(df.itertuples(index=False, name=None))
+
+        except Exception as e:
+            st.sidebar.error(f"Invalid CSV file: {e}")
+            return []
+
+    # ==================================================
+    # DEFAULT: USE MANUAL INPUT
+    # ==================================================
+    return manual_data
+
 
 
 def show_minisum_sfl(data):
