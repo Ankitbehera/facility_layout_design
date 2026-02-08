@@ -51,7 +51,7 @@ def build_inputs():
             w0 = 1.0 / m
 
         a = col1.number_input(
-            f"a{i+1}",
+            f"$a_{i+1}$",
             key=f"a{i}",
             value=a0,
             step=0.1,
@@ -59,7 +59,7 @@ def build_inputs():
         )
 
         b = col2.number_input(
-            f"b{i+1}",
+            f"$b_{i+1}$",
             key=f"b{i}",
             value=b0,
             step=0.1,
@@ -67,7 +67,7 @@ def build_inputs():
         )
 
         w = col3.number_input(
-            f"w{i+1}",
+            f"$w_{i+1}$",
             key=f"w{i}",
             min_value=0.0,
             value=w0

@@ -139,88 +139,62 @@ def solve_minisum_mfl(existing, w_ji, v_jk, max_iter=50, tol=1e-6):
 
 def check_multiple_solutions(ef_coords, w_matrix, v_matrix, X_opt):
     """
-    Checks for multiple optimal solutions and calculates the valid range.
-    Returns a list of warning dictionaries:
-    [
-      {"type": "property4", "msg": "..."}, 
-      {"type": "flat", "msg": "...", "range": "[10, 20]"}
-    ]
+    Checks for indicators of multiple optimal solutions based on:
+    1. Property 4: Do multiple NFs share the same coordinate?
+    2. Median Condition: Is the weight perfectly balanced (Left == Right)?
     """
-    messages = []
+    warnings = []
     n = len(X_opt)
     m = len(ef_coords)
     
     # 1. Check Property 4 (Distinctness)
-    # If two NFs share the same x or y, it's a red flag.
-    shared_warnings = []
+    # If two NFs share the same x or y, it's a red flag for local optima/multiple solutions
+    shared_coords = False
     for j in range(n):
         for k in range(j + 1, n):
-            if (abs(X_opt[j][0] - X_opt[k][0]) < 1e-4) and (abs(X_opt[j][1] - X_opt[k][1]) < 1e-4):
-                shared_warnings.append(f"NF{j+1} & NF{k+1}")
+            # Check X
+            if abs(X_opt[j][0] - X_opt[k][0]) < 1e-4:
+                shared_coords = True
+            # Check Y
+            if abs(X_opt[j][1] - X_opt[k][1]) < 1e-4:
+                shared_coords = True
     
-    if shared_warnings:
-        messages.append({
-            "type": "property4",
-            "msg": f"**Coincidence Warning (Property 4 Violated):** {', '.join(shared_warnings)} are at the exact same location. The algorithm may be trapped in a local optimum."
-        })
+    if shared_coords:
+        return "Multiple New Facilities share the same coordinate value. (Property 4 NOT satisfied)."
 
     # 2. Check "Flat Median" Condition (Left Weight == Right Weight)
+    # If Left == Right, the median is not unique to a point but valid over a range.
     for dim, dim_name in [(0, 'x'), (1, 'y')]:
         for j in range(n):
             current_val = X_opt[j][dim]
             
-            # Collect all interacting coordinates and their weights
-            relevant_points = []
+            left_weight = 0
+            right_weight = 0
             
             # EF Weights
             for i in range(m):
+                coord = ef_coords[i][dim]
                 w = w_matrix[j][i]
-                if w > 0:
-                    relevant_points.append({'coord': ef_coords[i][dim], 'weight': w, 'type': f'EF{i+1}'})
+                if coord < current_val - 1e-5: left_weight += w
+                elif coord > current_val + 1e-5: right_weight += w
             
-            # NF Weights (Fixed locations of others)
+            # NF Weights
             for k in range(n):
                 if j == k: continue
+                coord = X_opt[k][dim]
                 v = v_matrix[j][k] if k > j else v_matrix[k][j]
-                if v > 0:
-                    relevant_points.append({'coord': X_opt[k][dim], 'weight': v, 'type': f'NF{k+1}'})
-
-            # Calculate Forces
-            left_weight = sum(p['weight'] for p in relevant_points if p['coord'] < current_val - 1e-5)
-            right_weight = sum(p['weight'] for p in relevant_points if p['coord'] > current_val + 1e-5)
+                if coord < current_val - 1e-5: left_weight += v
+                elif coord > current_val + 1e-5: right_weight += v
             
-            # If weights are balanced, we are in a flat region.
-            # We need to find the NEAREST neighbors to define the range.
+            # If the weights on both sides are essentially equal, 
+            # it means we are on a "flat" segment of the cost function.
             if abs(left_weight - right_weight) < 1e-4:
-                # Find bound_low (nearest point <= current) and bound_high (nearest point >= current)
-                # Actually, in a flat region, the range is usually between two critical points.
-                
-                sorted_coords = sorted([p['coord'] for p in relevant_points])
-                
-                # Find immediate neighbors in the sorted list
-                lower_bound = current_val
-                upper_bound = current_val
-                
-                # Search below
-                below = [z for z in sorted_coords if z < current_val - 1e-5]
-                if below: lower_bound = max(below)
-                
-                # Search above
-                above = [z for z in sorted_coords if z > current_val + 1e-5]
-                if above: upper_bound = min(above)
-                
-                # Format the range string
-                if abs(lower_bound - upper_bound) > 1e-4:
-                    range_str = f"[{lower_bound:.2f}, {upper_bound:.2f}]"
-                    messages.append({
-                        "type": "flat",
-                        "facility": f"NF{j+1}",
-                        "axis": dim_name,
-                        "range": range_str,
-                        "msg": f"**Multiple Solutions for NF{j+1} ({dim_name}-axis):** Weights are perfectly balanced. Optimal Range: {range_str}"
-                    })
+                warnings.append(f"NF{j+1} ({dim_name})")
 
-    return messages
+    if warnings:
+        return f"Objective function is flat for: {', '.join(warnings)}. (Perfect Weight Balance)."
+    
+    return None
 
 # ------------------------------------------------------------------------------
 # LP Solver (Rectilinear)
@@ -329,164 +303,6 @@ def solve_minisum_mfl_lp(existing, w_ji, v_jk):
         "details_x": res_x,
         "details_y": res_y
     }
-import numpy as np
-
-# --------------------------------------------------
-# 1. Squared Euclidean Solver (Analytical)
-# --------------------------------------------------
-def solve_squared_euclidean(existing_coords, w_matrix, v_matrix):
-    """
-    Solves Minisum MFL with Squared Euclidean distance using a linear system.
-    Returns dictionary with optimal coords and objective value.
-    Reference: Lecture Slide 31 (Weighted Average).
-    """
-    existing_coords = np.array(existing_coords)
-    w_matrix = np.array(w_matrix)
-    v_matrix = np.array(v_matrix)
-    
-    n_new = len(v_matrix)
-    m_exist = len(existing_coords)
-    
-    # Setup System: A * x = B_x and A * y = B_y
-    A = np.zeros((n_new, n_new))
-    B_x = np.zeros(n_new)
-    B_y = np.zeros(n_new)
-    
-    for j in range(n_new):
-        # Diagonal: Sum of all weights connected to j
-        sum_w = np.sum(w_matrix[j, :])
-        sum_v = np.sum(v_matrix[j, :]) # Row sum (v_jj is 0)
-        A[j, j] = sum_w + sum_v
-        
-        # Off-diagonal: Negative interaction weights
-        for k in range(n_new):
-            if j != k:
-                # v matrix is symmetric, usually v_jk or v_kj
-                val = v_matrix[j, k] if k > j else v_matrix[k, j]
-                A[j, k] = -val
-        
-        # RHS Vectors: Weighted sum of fixed coordinates
-        B_x[j] = np.sum(w_matrix[j, :] * existing_coords[:, 0])
-        B_y[j] = np.sum(w_matrix[j, :] * existing_coords[:, 1])
-        
-    # Solve
-    try:
-        x_opt = np.linalg.solve(A, B_x)
-        y_opt = np.linalg.solve(A, B_y)
-        X_opt = list(zip(x_opt, y_opt))
-        
-        # Calculate Objective Cost (Squared)
-        obj_val = 0.0
-        # NF-NF
-        for j in range(n_new):
-            for k in range(j+1, n_new):
-                dist_sq = (x_opt[j] - x_opt[k])**2 + (y_opt[j] - y_opt[k])**2
-                val = v_matrix[j, k]
-                obj_val += val * dist_sq
-        # NF-EF
-        for j in range(n_new):
-            for i in range(m_exist):
-                dist_sq = (x_opt[j] - existing_coords[i, 0])**2 + (y_opt[j] - existing_coords[i, 1])**2
-                obj_val += w_matrix[j, i] * dist_sq
-                
-        return {"X_opt": X_opt, "obj": obj_val, "status": "Optimal"}
-        
-    except np.linalg.LinAlgError:
-        return {"error": "System is singular. Check weights (must be > 0)."}
-
-# --------------------------------------------------
-# 2. Standard Euclidean Solver (Iterative Weiszfeld)
-# --------------------------------------------------
-def solve_euclidean_weiszfeld(existing_coords, w_matrix, v_matrix, max_iter=50, tol=1e-4):
-    """
-    Solves Minisum MFL with Standard Euclidean distance using Weiszfeld's Algorithm.
-    Reference: Lecture Slide 36-38.
-    """
-    existing_coords = np.array(existing_coords)
-    w_matrix = np.array(w_matrix)
-    v_matrix = np.array(v_matrix)
-    
-    n_new = len(v_matrix)
-    m_exist = len(existing_coords)
-    epsilon = 1e-6 # To avoid division by zero
-    
-    # Initialize at Center of Gravity (Squared solution is a good guess)
-    init_res = solve_squared_euclidean(existing_coords, w_matrix, v_matrix)
-    if "error" in init_res:
-        current_X = np.mean(existing_coords, axis=0) * np.ones((n_new, 2))
-    else:
-        current_X = np.array(init_res["X_opt"])
-        
-    history = [current_X.copy()]
-    
-    for iteration in range(max_iter):
-        next_X = np.zeros_like(current_X)
-        
-        for j in range(n_new):
-            # Numerators and Denominators for Weiszfeld update
-            num_x, num_y = 0.0, 0.0
-            denom = 0.0
-            
-            # EF contributions
-            for i in range(m_exist):
-                dist = np.sqrt(np.sum((current_X[j] - existing_coords[i])**2))
-                dist = max(dist, epsilon) # Handle singularity
-                
-                weight = w_matrix[j, i]
-                term = weight / dist
-                
-                num_x += term * existing_coords[i, 0]
-                num_y += term * existing_coords[i, 1]
-                denom += term
-                
-            # NF contributions
-            for k in range(n_new):
-                if j == k: continue
-                val = v_matrix[j, k] if k > j else v_matrix[k, j]
-                
-                dist = np.sqrt(np.sum((current_X[j] - current_X[k])**2))
-                dist = max(dist, epsilon)
-                
-                term = val / dist
-                num_x += term * current_X[k, 0]
-                num_y += term * current_X[k, 1]
-                denom += term
-            
-            # Update coordinate j
-            if denom > 1e-8:
-                next_X[j, 0] = num_x / denom
-                next_X[j, 1] = num_y / denom
-            else:
-                next_X[j] = current_X[j] # No pull, stay put
-                
-        # Check convergence
-        diff = np.sum(np.abs(next_X - current_X))
-        history.append(next_X.copy())
-        current_X = next_X
-        
-        if diff < tol:
-            break
-            
-    # Calculate Final Cost (Standard L2)
-    obj_val = 0.0
-    for j in range(n_new):
-        for k in range(j+1, n_new):
-            dist = np.sqrt(np.sum((current_X[j] - current_X[k])**2))
-            val = v_matrix[j, k] if k > j else v_matrix[k, j]
-            obj_val += val * dist
-            
-    for j in range(n_new):
-        for i in range(m_exist):
-            dist = np.sqrt(np.sum((current_X[j] - existing_coords[i])**2))
-            obj_val += w_matrix[j, i] * dist
-            
-    return {
-        "X_opt": current_X.tolist(),
-        "obj": obj_val,
-        "history": history,
-        "iterations": iteration + 1
-    }
-
 
 # ------------------------------------------------------------------------------
 # Plotting Function
@@ -494,7 +310,7 @@ def solve_euclidean_weiszfeld(existing_coords, w_matrix, v_matrix, max_iter=50, 
 
 def plot_mfl_solution(existing_coords, new_coords, w_matrix, v_matrix):
     """
-    Generates a MFL solution plot with weight labels on connections.
+    Generates a professional MFL solution plot with weight labels on connections.
     """
     fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
     
@@ -599,7 +415,7 @@ def plot_cost_history(history_obj):
     Plots the convergence of the objective function (Total Cost).
     Style: Matches Tab 2 (Academic/Publication quality).
     """
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+    fig, ax = plt.subplots(figsize=(6, 4.5), dpi=100)
     
     iterations = range(len(history_obj))
     
@@ -622,103 +438,71 @@ def plot_cost_history(history_obj):
     plt.tight_layout()
     return fig
 
-def plot_trajectory(existing_coords, history_X, w_matrix, v_matrix):
+def plot_trajectory(existing_coords, history_X):
     """
-    Plots movement paths and final weighted interactions for New Facilities.
+    Plots the movement path of New Facilities.
+    Style: Matches Tab 2 (Blue EFs, Red NFs).
     """
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
+    fig, ax = plt.subplots(figsize=(6, 5), dpi=100)
     
-    num_nfs = len(history_X[0])
-    num_iters = len(history_X)
-    optimal_coords = history_X[-1]
-    m = len(existing_coords)
-
-    # Colors and styling
-    color_ef = '#1f77b4'
-    color_nf = '#d62728'
-    color_line_ef = '#aec7e8'
-    color_line_nf = '#7f7f7f'
-    path_colors = ['#d62728', '#ff7f0e', '#9467bd']
-
-    # --------------------------------------------------
-    # 1. Plot Final Interactions & Weights (Optimal State)
-    # --------------------------------------------------
-    # EF-NF Interactions (w_ji)
-    for j in range(num_nfs):
-        nf_x, nf_y = optimal_coords[j]
-        for i in range(m):
-            weight = w_matrix[j][i]
-            if weight > 0:
-                ef_x, ef_y = existing_coords[i]
-                ax.plot([nf_x, ef_x], [nf_y, ef_y], color=color_line_ef, 
-                        linestyle=':', linewidth=0.8, alpha=0.5, zorder=1)
-                
-                # Weight label at midpoint
-                mid_x, mid_y = (nf_x + ef_x) / 2, (nf_y + ef_y) / 2
-                ax.text(mid_x, mid_y, f'{weight:g}', color='#154360', fontsize=7,
-                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.5, edgecolor='none', pad=0.5))
-
-    # NF-NF Interactions (v_jk)
-    for j in range(num_nfs):
-        for k in range(j + 1, num_nfs):
-            weight = v_matrix[j][k]
-            if weight > 0:
-                nf1_x, nf1_y = optimal_coords[j]
-                nf2_x, nf2_y = optimal_coords[k]
-                ax.plot([nf1_x, nf2_x], [nf1_y, nf2_y], color=color_line_nf, 
-                        linestyle='-', linewidth=1.2, alpha=0.6, zorder=1)
-                
-                # Weight label at midpoint
-                mid_x, mid_y = (nf1_x + nf2_x) / 2, (nf1_y + nf2_y) / 2
-                ax.text(mid_x, mid_y, f'{weight:g}', color='black', fontsize=8, fontweight='bold',
-                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='none', pad=0.5))
-
-    # --------------------------------------------------
-    # 2. Plot Trajectories (Movement Paths)
-    # --------------------------------------------------
-    for j in range(num_nfs):
-        path_x = [history_X[k][j][0] for k in range(num_iters)]
-        path_y = [history_X[k][j][1] for k in range(num_iters)]
-        c_line = path_colors[j % len(path_colors)]
-        
-        # Path Line
-        ax.plot(path_x, path_y, linestyle='--', linewidth=1, color=c_line, alpha=0.8, zorder=2)
-        # Start Point
-        ax.scatter([path_x[0]], [path_y[0]], c='gray', marker='x', s=40, zorder=3)
-
-    # --------------------------------------------------
-    # 3. Plot Facilities
-    # --------------------------------------------------
-    # Existing Facilities
+    # 1. Plot Existing Facilities (Blue Squares like Tab 2)
     ef_xs = [p[0] for p in existing_coords]
     ef_ys = [p[1] for p in existing_coords]
-    #ax.scatter(ef_xs, ef_ys, facecolors='none', edgecolors=color_ef, marker='o', s=130, linewidths=1.5, zorder=4)
-    ax.scatter(ef_xs, ef_ys, c=color_ef, marker='o', s=15, zorder=5)
-
-    # Optimal New Facilities
-    nf_xs = [p[0] for p in optimal_coords]
-    nf_ys = [p[1] for p in optimal_coords]
-    ax.scatter(nf_xs, nf_ys, c=color_nf, marker='*', s=200, edgecolors='black', linewidths=0.5, zorder=6)
-
-    # Labels
-    for i, (x, y) in enumerate(existing_coords):
-        ax.text(x, y - 1.2, f'$P_{{{i+1}}}$', fontsize=8, ha='center', color=color_ef)
-    for j, (x, y) in enumerate(optimal_coords):
-        ax.text(x, y + 1.2, f'$X_{{{j+1}}}$', fontsize=9, fontweight='bold', ha='center', color=color_nf)
-
-    # Legend & Formatting
-    legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Existing ($P_i$)', markerfacecolor=color_ef, markersize=8),
-        Line2D([0], [0], marker='*', color='w', label='Optimal ($X_j$)', markerfacecolor=color_nf, markersize=12, markeredgecolor='black'),
-        Line2D([0], [0], color='gray', linestyle='--', label='Path'),
-        Line2D([0], [0], marker='x', color='w', markeredgecolor='gray', label='Start')
-    ]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=7)
     
-    ax.set_title("Optimization Trajectory & Weighted Interactions", fontsize=11, pad=10)
+    # Outer circle
+    ax.scatter(ef_xs, ef_ys, facecolors='none', edgecolors='#1f77b4', 
+               marker='o', s=100, linewidths=1.5, label='Existing Facility', zorder=2)
+    # Inner dot
+    ax.scatter(ef_xs, ef_ys, c='#1f77b4', marker='o', s=15, zorder=3)
+    
+    # Annotate EFs
+    for i, (x, y) in enumerate(existing_coords):
+        ax.text(x, y - 0.5, f'$P_{{{i+1}}}$', fontsize=8, ha='center', va='top', color='#1f77b4')
+
+    # 2. Plot Trajectories for each NF
+    num_nfs = len(history_X[0])
+    num_iters = len(history_X)
+    
+    # Use distinct colors for different NF paths if needed, 
+    # but keep the final destination Red to match Tab 2.
+    path_colors = ['#d62728', '#ff7f0e', '#9467bd'] # Red, Orange, Purple
+    
+    for j in range(num_nfs):
+        # Extract path
+        path_x = [history_X[k][j][0] for k in range(num_iters)]
+        path_y = [history_X[k][j][1] for k in range(num_iters)]
+        
+        c_line = path_colors[j % len(path_colors)]
+        
+        # Plot Path Line
+        ax.plot(path_x, path_y, linestyle='--', linewidth=1, color=c_line, alpha=0.6, zorder=1)
+        
+        # Plot Start Point (x marker)
+        ax.scatter([path_x[0]], [path_y[0]], c='gray', marker='x', s=40, zorder=2)
+        
+        # Plot End Point (Red Star like Tab 2)
+        ax.scatter([path_x[-1]], [path_y[-1]], c='#d62728', marker='*', s=150, 
+                   edgecolors='black', linewidths=0.5, zorder=4, label='Optimal Location' if j==0 else "")
+        
+        # Label NF
+        ax.text(path_x[-1], path_y[-1] + 0.5, f'$X_{{{j+1}}}$', 
+                fontsize=9, fontweight='bold', ha='center', va='bottom', color='#d62728')
+
+    # Styling
+    ax.set_title("Optimization Trajectory (Movement History)", fontsize=11, pad=10)
     ax.set_xlabel("X Coordinate")
     ax.set_ylabel("Y Coordinate")
-    ax.grid(True, linestyle=':', alpha=0.4)
-    plt.tight_layout()
+    ax.grid(True, linestyle=':', alpha=0.5)
     
+    # Simplified Legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='#1f77b4', label='Existing ($P_i$)', markersize=8),
+        Line2D([0], [0], marker='*', color='w', markerfacecolor='#d62728', label='Optimal ($X_j$)', markersize=12, markeredgecolor='k'),
+        Line2D([0], [0], color='gray', linestyle='--', label='Movement Path'),
+        Line2D([0], [0], marker='x', color='w', markeredgecolor='gray', label='Start Point')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1), fontsize=8)
+    
+    plt.tight_layout()
     return fig

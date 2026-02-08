@@ -3,8 +3,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
-
 import ui_pages as pg
 
 st.set_page_config(
@@ -20,7 +18,6 @@ pages = [
     "Minisum Single Facility Location",
     "Minimax/Maximin SFL",
     "Minisum Multiple Facility Location",
-    "Minimax Multiple Facility Location",
     "Location Allocation Problems",
     "References",
 ]
@@ -55,9 +52,6 @@ elif page == "Minimax/Maximin SFL":
 elif page == "Minisum Multiple Facility Location":
     data = pg.minisum_mfl.build_inputs()
     pg.minisum_mfl.show_minisum_mfl(data)
-
-elif page == "Minimax Multiple Facility Location":
-    pg.minimax_mfl.show_minimax_mfl()
 
 elif page == "Location Allocation Problems":
     pg.lap.show_lap()

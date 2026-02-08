@@ -85,9 +85,6 @@ def show_home():
         if st.button("Minisum Multiple Facility Location", use_container_width=True):
             _go_to("Minisum Multiple Facility Location")
 
-        if st.button("Minimax Multiple Facility Location", use_container_width=True):
-            _go_to("Minimax Multiple Facility Location")
-
         if st.button("Location Allocation Problems", use_container_width=True):
             _go_to("Location Allocation Problems")
 
