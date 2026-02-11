@@ -239,8 +239,8 @@ def plot_minimax_solution_L1(data, result):
     # Color Palette
     color_ef = '#1f77b4'  # Professional Blue for Existing Facilities
     color_segment = '#ff0000' # Red for the optimal connecting line
-    color_p1 = '#ff0000'  # Green Star for Point 1
-    color_p2 = '#ff8c00'  # Orange Star for Point 2
+    color_p1 = '#2ca02c'  # Green Star for Point 1
+    color_p2 = '#ff7f0e'  # Orange Star for Point 2
     
     fig, ax = plt.subplots(figsize=(7, 7), dpi=100)
 

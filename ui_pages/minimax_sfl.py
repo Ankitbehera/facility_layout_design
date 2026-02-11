@@ -130,10 +130,10 @@ def show_minimax_sfl(data):
     # --------------------------------------------------
     # Tabs
     # --------------------------------------------------
-    tab1, tab2, tab3 = st.tabs(
+    tab1, tab3 = st.tabs(
         [
             "Minimax Rectilinear (Solved Equivalent LPP)",
-            "Maximin Rectilinear (Solved Equivalent LPP)",
+            #"Maximin Rectilinear (Solved Equivalent LPP)",
             "Minimax Equilidean (Elzinga-Hearn Algo.)"
         ]
     )
@@ -349,170 +349,170 @@ def show_minimax_sfl(data):
             st.pyplot(fig)
     
             st.caption(
-                "Black points represent demand locations. "
+                "Blue points represent demand locations. "
                 "The red line segment represents the complete set of optimal solutions."
             )
     
-    # --------------------------------------------------
-    # TAB 2: Maximin Rectilinear (Geometric Reformulation)
-    # --------------------------------------------------
-    with tab2:
+    # # --------------------------------------------------
+    # # TAB 2: Maximin Rectilinear (Geometric Reformulation)
+    # # --------------------------------------------------
+    # with tab2:
     
-        st.subheader("Single-Facility Rectilinear Maximin Location Problem")
+    #     st.subheader("Single-Facility Rectilinear Maximin Location Problem")
     
-        # --------------------------------------------------
-        # Mathematical model
-        # --------------------------------------------------
-        st.latex(
-            r"""
-            \max f(x,y)
-            =
-            \min_{1 \le i \le m}
-            \left\{
-            |x-a_i| + |y-b_i|
-            \right\}
-            """
-        )
+    #     # --------------------------------------------------
+    #     # Mathematical model
+    #     # --------------------------------------------------
+    #     st.latex(
+    #         r"""
+    #         \max f(x,y)
+    #         =
+    #         \min_{1 \le i \le m}
+    #         \left\{
+    #         |x-a_i| + |y-b_i|
+    #         \right\}
+    #         """
+    #     )
     
-        st.latex(
-            r"""
-            \begin{aligned}
-            \max \quad & Z \\
-            \text{s.t.} \quad
-            & |x-a_i| + |y-b_i| \ge Z, \quad \forall i
-            \end{aligned}
-            """
-        )
+    #     st.latex(
+    #         r"""
+    #         \begin{aligned}
+    #         \max \quad & Z \\
+    #         \text{s.t.} \quad
+    #         & |x-a_i| + |y-b_i| \ge Z, \quad \forall i
+    #         \end{aligned}
+    #         """
+    #     )
     
-        st.markdown(
-            """
-            This problem models the location of an **obnoxious facility**
-            (e.g., waste dump, polluting plant), where the goal is to
-            **maximize the distance to the nearest demand point**.
-            """
-        )
+    #     st.markdown(
+    #         """
+    #         This problem models the location of an **obnoxious facility**
+    #         (e.g., waste dump, polluting plant), where the goal is to
+    #         **maximize the distance to the nearest demand point**.
+    #         """
+    #     )
     
-        # --------------------------------------------------
-        # Solve using correct geometric maximin solver
-        # --------------------------------------------------
-        result = slv.solve_maximin_sfl_L1(data)
+    #     # --------------------------------------------------
+    #     # Solve using correct geometric maximin solver
+    #     # --------------------------------------------------
+    #     result = slv.solve_maximin_sfl_L1(data)
     
-        Z_star = result["Z"]                 # true distance (>= 0)
-        x_star, y_star = result["point"]
-        c1, c2, c3, c4 = result["c_vals"]
+    #     Z_star = result["Z"]                 # true distance (>= 0)
+    #     x_star, y_star = result["point"]
+    #     c1, c2, c3, c4 = result["c_vals"]
     
-        # --------------------------------------------------
-        # Two-column layout
-        # --------------------------------------------------
-        left_col, right_col = st.columns([1.8, 1.2])
+    #     # --------------------------------------------------
+    #     # Two-column layout
+    #     # --------------------------------------------------
+    #     left_col, right_col = st.columns([1.8, 1.2])
     
-        # ==================================================
-        # LEFT COLUMN — THEORY
-        # ==================================================
-        with left_col:
+    #     # ==================================================
+    #     # LEFT COLUMN — THEORY
+    #     # ==================================================
+    #     with left_col:
     
-            st.subheader("Geometric Reformulation")
+    #         st.subheader("Geometric Reformulation")
     
-            st.markdown(
-                """
-                Define the following constants based on the demand points:
-                """
-            )
+    #         st.markdown(
+    #             """
+    #             Define the following constants based on the demand points:
+    #             """
+    #         )
     
-            st.latex(
-                rf"""
-                \begin{{aligned}}
-                c_1 &= \max (a_i + b_i) = {c1:.3f} \\
-                c_2 &= \max (a_i - b_i) = {c2:.3f} \\
-                c_3 &= \max (-a_i + b_i) = {c3:.3f} \\
-                c_4 &= \max (-a_i - b_i) = {c4:.3f}
-                \end{{aligned}}
-                """
-            )
+    #         st.latex(
+    #             rf"""
+    #             \begin{{aligned}}
+    #             c_1 &= \max (a_i + b_i) = {c1:.3f} \\
+    #             c_2 &= \max (a_i - b_i) = {c2:.3f} \\
+    #             c_3 &= \max (-a_i + b_i) = {c3:.3f} \\
+    #             c_4 &= \max (-a_i - b_i) = {c4:.3f}
+    #             \end{{aligned}}
+    #             """
+    #         )
     
-            st.markdown(
-                """
-                Using these constants, define the **geometric slack function**:
-                """
-            )
+    #         st.markdown(
+    #             """
+    #             Using these constants, define the **geometric slack function**:
+    #             """
+    #         )
     
-            st.latex(
-                r"""
-                Z_{\text{geom}}(x,y)
-                =
-                \min
-                \left\{
-                x+y-c_1,\;
-                x-y-c_2,\;
-                -x+y-c_3,\;
-                -x-y-c_4
-                \right\}
-                """
-            )
+    #         st.latex(
+    #             r"""
+    #             Z_{\text{geom}}(x,y)
+    #             =
+    #             \min
+    #             \left\{
+    #             x+y-c_1,\;
+    #             x-y-c_2,\;
+    #             -x+y-c_3,\;
+    #             -x-y-c_4
+    #             \right\}
+    #             """
+    #         )
     
-            st.markdown(
-                """
-                The **true maximin objective value** is:
-                """
-            )
+    #         st.markdown(
+    #             """
+    #             The **true maximin objective value** is:
+    #             """
+    #         )
     
-            st.latex(
-                r"""
-                f(x,y) = \max\{0,\; Z_{\text{geom}}(x,y)\}
-                """
-            )
+    #         st.latex(
+    #             r"""
+    #             f(x,y) = \max\{0,\; Z_{\text{geom}}(x,y)\}
+    #             """
+    #         )
     
-            st.markdown(
-                """
-                The optimal solution is obtained by choosing \\((x,y)\\)
-                so that the **minimum of the four linear expressions is maximized**.
-                Unlike the minimax problem, **no universal closed-form solution exists**.
-                """
-            )
+    #         st.markdown(
+    #             """
+    #             The optimal solution is obtained by choosing \\((x,y)\\)
+    #             so that the **minimum of the four linear expressions is maximized**.
+    #             Unlike the minimax problem, **no universal closed-form solution exists**.
+    #             """
+    #         )
     
-        # ==================================================
-        # RIGHT COLUMN — RESULTS & INTERPRETATION
-        # ==================================================
-        with right_col:
+    #     # ==================================================
+    #     # RIGHT COLUMN — RESULTS & INTERPRETATION
+    #     # ==================================================
+    #     with right_col:
     
-            st.subheader("Numerical Solution")
+    #         st.subheader("Numerical Solution")
     
-            st.latex(
-                rf"""
-                Z^* = \min_i
-                \left\{{ |x^*-a_i| + |y^*-b_i| \right\}}
-                = {Z_star:.3f}
-                """
-            )
+    #         st.latex(
+    #             rf"""
+    #             Z^* = \min_i
+    #             \left\{{ |x^*-a_i| + |y^*-b_i| \right\}}
+    #             = {Z_star:.3f}
+    #             """
+    #         )
     
-            st.latex(
-                rf"""
-                (x^*,y^*) = ({x_star:.3f},\; {y_star:.3f})
-                """
-            )
+    #         st.latex(
+    #             rf"""
+    #             (x^*,y^*) = ({x_star:.3f},\; {y_star:.3f})
+    #             """
+    #         )
     
-            st.markdown(
-                """
-                **Key observations:**
-                - The maximin objective value is **never negative**
-                - The problem is **always feasible**
-                - Without explicit bounds, the problem may be **unbounded**
-                - The solution shown is a **representative optimal point**
-                """
-            )
+    #         st.markdown(
+    #             """
+    #             **Key observations:**
+    #             - The maximin objective value is **never negative**
+    #             - The problem is **always feasible**
+    #             - Without explicit bounds, the problem may be **unbounded**
+    #             - The solution shown is a **representative optimal point**
+    #             """
+    #         )
     
-            st.subheader("Graphical Interpretation")
+    #         st.subheader("Graphical Interpretation")
     
-            fig = slv.plot_minimax_solution_L1(
-                data,
-                {"segment": [(x_star, y_star), (x_star, y_star)]}
-            )
-            st.pyplot(fig)
+    #         fig = slv.plot_minimax_solution_L1(
+    #             data,
+    #             {"segment": [(x_star, y_star), (x_star, y_star)]}
+    #         )
+    #         st.pyplot(fig)
     
-            st.caption(
-                "The plotted point represents a location that maximizes the distance "
-                "to the nearest demand point under rectilinear distance."
-            )
+    #         st.caption(
+    #             "The plotted point represents a location that maximizes the distance "
+    #             "to the nearest demand point under rectilinear distance."
+    #         )
     # --------------------------------------------------
     # TAB 3: Minimax Euclidean (Elzinga-Hearn Algo.)
     # --------------------------------------------------
