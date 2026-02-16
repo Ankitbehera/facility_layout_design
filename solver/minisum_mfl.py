@@ -270,7 +270,7 @@ def solve_minisum_mfl_lp(existing, w_ji, v_jk):
         # 2. NF-NF constraints
         for j in range(n):
             for k in range(j + 1, n):
-                prob += x[j] - x[k] + p_aux[j][k] - q_aux[j][k] == 0
+                prob += x[j] - x[k] - p_aux[j][k] + q_aux[j][k] == 0
         
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
         

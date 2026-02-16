@@ -545,12 +545,13 @@ def show_minisum_mfl(data):
         )
         
         st.markdown("**Constraints:**")
+        # UPDATED: Corrected signs for p, q, a, and b to match definitions
         st.latex(
             r"""
             \begin{aligned}
-            x_j - x_k + p_{jk} - q_{jk} &= 0, & \forall 1 \le j < k \le n \\
+            x_j - x_k - p_{jk} + q_{jk} &= 0, & \forall 1 \le j < k \le n \\
             x_j - r_{ji} + s_{ji} &= a_i, & \forall j, i \\
-            y_j - y_k + a_{jk} - b_{jk} &= 0, & \forall 1 \le j < k \le n \\
+            y_j - y_k - a_{jk} + b_{jk} &= 0, & \forall 1 \le j < k \le n \\
             y_j - u_{ji} + d_{ji} &= b_i, & \forall j, i \\
             \text{All variables} &\ge 0
             \end{aligned}
@@ -611,12 +612,12 @@ def show_minisum_mfl(data):
                     val = ef_df.iloc[i, 0]
                     st.latex(rf"x_{{{j+1}}} - r_{{{j+1}{i+1}}} + s_{{{j+1}{i+1}}} = {val:g}")
             
-            # NF Constraints
+            # NF Constraints (UPDATED SIGNS)
             if n > 1:
                 st.markdown("---")
                 for j in range(n):
                     for k in range(j+1, n):
-                        st.latex(rf"x_{{{j+1}}} - x_{{{k+1}}} + p_{{{j+1}{k+1}}} - q_{{{j+1}{k+1}}} = 0")
+                        st.latex(rf"x_{{{j+1}}} - x_{{{k+1}}} - p_{{{j+1}{k+1}}} + q_{{{j+1}{k+1}}} = 0")
                         
         with col_c2:
             st.markdown("**Y-Coordinates**")
@@ -627,12 +628,12 @@ def show_minisum_mfl(data):
                     val = ef_df.iloc[i, 1]
                     st.latex(rf"y_{{{j+1}}} - u_{{{j+1}{i+1}}} + d_{{{j+1}{i+1}}} = {val:g}")
             
-            # NF Constraints
+            # NF Constraints (UPDATED SIGNS)
             if n > 1:
                 st.markdown("---")
                 for j in range(n):
                     for k in range(j+1, n):
-                        st.latex(rf"y_{{{j+1}}} - y_{{{k+1}}} + a_{{{j+1}{k+1}}} - b_{{{j+1}{k+1}}} = 0")
+                        st.latex(rf"y_{{{j+1}}} - y_{{{k+1}}} - a_{{{j+1}{k+1}}} + b_{{{j+1}{k+1}}} = 0")
 
         # --------------------------------------------------
         # Solve LP
@@ -732,6 +733,7 @@ def show_minisum_mfl(data):
                     st.dataframe(pd.DataFrame(rows_nf_y), hide_index=True, use_container_width=True)
                 else:
                     st.write("N/A (Only 1 New Facility)")
+
             st.markdown("**Interpretation of Active Constraints:**")
 
             col_interp_x, col_interp_y = st.columns(2)

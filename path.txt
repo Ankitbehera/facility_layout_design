@@ -1,0 +1,40 @@
+E:
+cd "E:\Studying\4th_Year\Sem_8\Facility Layout and Design\facility_location_app"
+streamlit run app.py
+jupyter lab
+
+Minisum MFL Problem
+---------------------------------
+Tabs
+1. Overview
+	Multi Facility Location Problem
+	Problem Statement
+	Interpretaion
+	Input Data Instructions
+	Show Data
+	Solution Methods Implemented
+
+2. Rectilinear(LP)
+	Problem Decomposition
+	Equivalent LP Formulation,with change of variables
+	Expanded LP, Expanded objective, Constraints in x coordinate and y coordiante
+	Tick box to solve LP
+	Show the solution
+	Decision Variable
+	Active Contraints (Geomatric Interpretation) based on Decision Variable
+		
+3. Coordinate Descent
+	Method Explanation
+	Implementaion
+	Limitations
+	
+4. Euclidean Models
+	Squared Euclidean
+	Euclidean
+	Gradient Equation
+
+5. LP vs Coordinate Descent
+
+
+
+pyinstaller --noconfirm --onefile --windowed --collect-all streamlit --collect-all pulp --collect-all matplotlib --copy-metadata streamlit --exclude-module jupyter --exclude-module notebook --exclude-module IPython --exclude PyQt5 --exclude PySide6 --paths "." --add-data "ui_pages;ui_pages" --add-data "solver;solver" --add-data "app.py;." launcher.py
