@@ -16,7 +16,7 @@ st.set_page_config(
 pages = [
     "Home",
     "Minisum Single Facility Location",
-    "Minimax/Maximin SFL",
+    "Minimax SFL",
     "Minisum Multiple Facility Location",
     "Location Allocation Problems",
     "References",
