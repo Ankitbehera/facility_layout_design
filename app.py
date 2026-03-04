@@ -45,7 +45,7 @@ elif page == "Minisum Single Facility Location":
     data = pg.minisum_sfl.build_inputs()
     pg.minisum_sfl.show_minisum_sfl(data)
 
-elif page == "Minimax/Maximin SFL":
+elif page == "Minimax SFL":
     data = pg.minimax_sfl.build_inputs()
     pg.minimax_sfl.show_minimax_sfl(data)
 
