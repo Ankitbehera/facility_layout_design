@@ -11,125 +11,171 @@ import solver.minisum_sfl as slv
 import io
 import pulp
 
+import streamlit as st
+import pandas as pd
+
 def build_inputs():
     # --------------------------------------------------
-    # Sidebar: Data Input
+    # Sidebar: Data Input (Minisum SFL)
     # --------------------------------------------------
     st.sidebar.header("Input Data")
 
+    # Initialize Session State Variables
+    if "m_val_sf" not in st.session_state: 
+        st.session_state.m_val_sf = 4
+    if "uploaded_csv_id" not in st.session_state:
+        st.session_state.uploaded_csv_id = None
+
     # ==================================================
-    # CASE 1: MANUAL INPUT (DEFAULT)
+    # 1. DATA LOADERS (Examples & CSV)
     # ==================================================
-    st.sidebar.subheader("Manual Input")
+    st.sidebar.subheader("Load Data")
 
-    m = st.sidebar.number_input(
-        "Number of existing facilities",
-        min_value=1,
-        step=1,
-        value=4
-    )
+    # --- A. Example Loader ---
+    with st.sidebar.expander("Load Example Problem", expanded=False):
+        st.caption("Select a preset Example to load data.")
+        
+        col_ex1, col_ex2 = st.columns(2)
+        col_ex3, col_ex4 = st.columns(2)
+        
+        # Buttons
+        load_ex1 = col_ex1.button("Example 1", help="4 Facilities Multiple Sol.")
+        load_ex2 = col_ex2.button("Example 2", help="6 Facilities (Tomkins 10.11)")
+        load_ex3 = col_ex3.button("Example 3", help="4 Facilities (Francis 4.4)")
+        load_ex4 = col_ex4.button("Example 4", help="6 Faci. Multi. Sol. Line Segment (Tomkins 10.2)")
+    
+        if load_ex1:
+            m_new = 4
+            st.session_state.m_val_sf = m_new
+            st.session_state["m_input_sf"] = m_new
+            st.session_state.sf_df = pd.DataFrame({
+                "a (x-coord)": [0.0, 0.0, 2.0, 4.0],
+                "b (y-coord)": [2.0, 4.0, 0.0, 0.0],
+                "w (weight)":  [3.0, 2.0, 3.0, 2.0]
+            }, index=[f"EF{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    st.sidebar.markdown("### Facility Locations")
+        if load_ex2:
+            m_new = 6
+            st.session_state.m_val_sf = m_new
+            st.session_state["m_input_sf"] = m_new
+            st.session_state.sf_df = pd.DataFrame({
+                "a (x-coord)": [5.0,50.0,25.0,35.0,15.0,30.0],
+                "b (y-coord)": [10.0,15.0,25.0,5.0,20.0,30.0],
+                "w (weight)":  [200,400,500,300,400,600]
+            }, index=[f"EF{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    default_data = [
-        (0.0, 2.0, 3.0),
-        (0.0, 4.0, 2.0),
-        (2.0, 0.0, 3.0),
-        (4.0, 0.0, 2.0),
-    ]
+        if load_ex3:
+            m_new = 4
+            st.session_state.m_val_sf = m_new
+            st.session_state["m_input_sf"] = m_new
+            st.session_state.sf_df = pd.DataFrame({
+                "a (x-coord)": [5,7,4,16],
+                "b (y-coord)": [10,6,2,3],
+                "w (weight)":  [450,1200,300,1500]
+            }, index=[f"EF{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    manual_data = []
+        if load_ex4:
+            m_new = 6
+            st.session_state.m_val_sf = m_new
+            st.session_state["m_input_sf"] = m_new
+            st.session_state.sf_df = pd.DataFrame({
+                "a (x-coord)": [1,2,3,1,-5,-3],
+                "b (y-coord)": [0,5,8,6,-1,-3],
+                "w (weight)":  [4,7,5,3,8,3]
+            }, index=[f"EF{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    for i in range(m):
-        col1, col2, col3 = st.sidebar.columns(3)
+    # --- B. CSV Loader ---
+    with st.sidebar.expander("Upload CSV Data", expanded=False):
+        uploaded_file = st.file_uploader(
+            "Upload Minisum SFL data (CSV)",
+            type=["csv"]
+        )
+        has_header = st.checkbox("My data has headers", value=True)
+        st.caption("CSV format: 3 numeric columns (a, b, w). No empty cells.")
 
-        if i < len(default_data):
-            a0, b0, w0 = default_data[i]
+        # Process newly uploaded file
+        if uploaded_file is not None:
+            # Check if this is a NEW upload by comparing file_ids
+            if st.session_state.uploaded_csv_id != uploaded_file.file_id:
+                try:
+                    if has_header:
+                        df = pd.read_csv(uploaded_file)
+                    else:
+                        df = pd.read_csv(uploaded_file, header=None)
+                    
+                    # Validation
+                    if len(df.columns) != 3:
+                        st.error("CSV must contain exactly 3 columns: a, b, w")
+                    elif df.isnull().any().any():
+                        st.error("CSV contains empty cells")
+                    else:
+                        df = df.astype(float)
+                        df.columns = ["a (x-coord)", "b (y-coord)", "w (weight)"]
+                        
+                        m_new = len(df)
+                        df.index = [f"EF{i+1}" for i in range(m_new)]
+                        
+                        # Update session state with CSV data
+                        st.session_state.m_val_sf = m_new
+                        st.session_state["m_input_sf"] = m_new
+                        st.session_state.sf_df = df
+                        st.session_state.uploaded_csv_id = uploaded_file.file_id
+                        
+                        st.rerun() # Refresh to show CSV data in the table
+                except Exception as e:
+                    st.error(f"Invalid CSV file: {e}")
+                    # Prevent infinite looping on a bad file
+                    st.session_state.uploaded_csv_id = uploaded_file.file_id 
         else:
-            a0 = float(i + 1)
-            b0 = float(i + 1)
-            w0 = 1.0 / m
-
-        a = col1.number_input(
-            f"$a_{i+1}$",
-            key=f"a{i}",
-            value=a0,
-            step=0.1,
-            format="%.2f"
-        )
-
-        b = col2.number_input(
-            f"$b_{i+1}$",
-            key=f"b{i}",
-            value=b0,
-            step=0.1,
-            format="%.2f"
-        )
-
-        w = col3.number_input(
-            f"$w_{i+1}$",
-            key=f"w{i}",
-            min_value=0.0,
-            value=w0
-        )
-
-        manual_data.append((a, b, w))
+            # Reset tracker if user clicks "X" to remove the uploaded file
+            st.session_state.uploaded_csv_id = None
 
     # ==================================================
-    # CASE 2: CSV UPLOAD (OVERRIDES MANUAL)
+    # 2. TABULAR DATA EDITOR (Manual Input / Edits)
     # ==================================================
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Upload CSV (Optional)")
+    st.sidebar.subheader("Manual Data")
 
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload Minisum SFL data (CSV)",
-        type=["csv"]
+    m = st.sidebar.number_input(
+        "Number of existing facilities ($m$)",
+        min_value=1, 
+        step=1,
+        value=st.session_state.m_val_sf,
+        key="m_input_sf"
     )
 
-    has_header = st.sidebar.checkbox("My data has headers", value=True)
+    dims_changed = (m != st.session_state.m_val_sf)
+    st.session_state.m_val_sf = m
 
-    st.sidebar.markdown(
-        """
-        **CSV format:**  
-        - Columns: `a, b, w`  
-        - All values numeric  
-        - No empty cells  
-        """
+    # If dimensions changed manually, or dataframe doesn't exist, rebuild a blank one
+    if dims_changed or "sf_df" not in st.session_state or len(st.session_state.sf_df) != m:
+        st.session_state.sf_df = pd.DataFrame({
+            "a (x-coord)": [float(i + 1) for i in range(m)],
+            "b (y-coord)": [float(i + 1) for i in range(m)],
+            "w (weight)":  [1.0 for _ in range(m)]
+        }, index=[f"EF{i+1}" for i in range(m)])
+
+    # The data_editor now holds user manual data OR the uploaded CSV / Example data
+    sf_df = st.sidebar.data_editor(
+        st.session_state.sf_df,
+        key="sf_table",
+        num_rows="fixed",
+        use_container_width=True
     )
 
-    if uploaded_file is not None:
-        try:
-            # ---- Read CSV ----
-            if has_header:
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_csv(uploaded_file, header=None)
-                df.columns = ["a", "b", "w"]
-
-            # ---- Validation (EXACTLY as before) ----
-            if list(df.columns) != ["a", "b", "w"]:
-                st.sidebar.error("CSV must contain exactly columns: a, b, w")
-                return []
-
-            if df.isnull().any().any():
-                st.sidebar.error("CSV contains empty cells")
-                return []
-
-            # ---- Type conversion ----
-            df = df.astype(float)
-
-            st.sidebar.success("CSV loaded successfully (manual input ignored)")
-            return list(df.itertuples(index=False, name=None))
-
-        except Exception as e:
-            st.sidebar.error(f"Invalid CSV file: {e}")
-            return []
+    if sf_df.isnull().any().any():
+        st.sidebar.error("Facility table contains empty cells.")
+        return []
 
     # ==================================================
-    # DEFAULT: USE MANUAL INPUT
+    # 3. RETURN DATA
     # ==================================================
-    return manual_data
-
+    # Extract final data from DataFrame to list of tuples: [(a, b, w), ...]
+    return list(sf_df.itertuples(index=False, name=None))
 
 
 def show_minisum_sfl(data):

@@ -16,9 +16,10 @@ st.set_page_config(
 pages = [
     "Home",
     "Minisum Single Facility Location",
-    "Minimax/Maximin SFL",
+    "Minimax SFL",
     "Minisum Multiple Facility Location",
-    "Location Allocation Problems",
+    "Set Covering",
+    "Assignment Problem",
     "References",
 ]
 
@@ -45,7 +46,7 @@ elif page == "Minisum Single Facility Location":
     data = pg.minisum_sfl.build_inputs()
     pg.minisum_sfl.show_minisum_sfl(data)
 
-elif page == "Minimax/Maximin SFL":
+elif page == "Minimax SFL":
     data = pg.minimax_sfl.build_inputs()
     pg.minimax_sfl.show_minimax_sfl(data)
 
@@ -53,8 +54,11 @@ elif page == "Minisum Multiple Facility Location":
     data = pg.minisum_mfl.build_inputs()
     pg.minisum_mfl.show_minisum_mfl(data)
 
-elif page == "Location Allocation Problems":
-    pg.lap.show_lap()
+elif page == "Set Covering":
+    pg.setcovering.show_setcovering()
+
+elif page == "Assignment Problem":
+    pg.assignment.show_assignment()
     
 elif page == "References":
     pg.references.show_references()

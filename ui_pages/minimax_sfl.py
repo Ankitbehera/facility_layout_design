@@ -14,111 +14,160 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.header("Input Data")
 
+    # Initialize Session State Variables (Unique keys for Minimax SFL)
+    if "m_val_mm_sf" not in st.session_state: 
+        st.session_state.m_val_mm_sf = 5
+    if "uploaded_csv_id_mm_sf" not in st.session_state:
+        st.session_state.uploaded_csv_id_mm_sf = None
+
     # ==================================================
-    # CASE 1: MANUAL INPUT (DEFAULT)
+    # 1. DATA LOADERS (Examples & CSV)
     # ==================================================
-    st.sidebar.subheader("Manual Input")
+    st.sidebar.subheader("Load Data")
 
-    m = st.sidebar.number_input(
-        "Number of demand points",
-        min_value=1,
-        step=1,
-        value=5
-    )
+    # --- A. Example Loader ---
+    with st.sidebar.expander("Load Example Problem", expanded=False):
+        st.caption("Select a preset Example to load data.")
+        
+        col_ex1, col_ex2 = st.columns(2)
+        col_ex3, col_ex4 = st.columns(2)
+        
+        # Buttons
+        load_ex1 = col_ex1.button("Example 1", help="5 Demand Points")
+        load_ex2 = col_ex2.button("Example 2", help="19 Demand Points (Tompkins 10.9(d))")
+        load_ex3 = col_ex3.button("Example 3", help="6 Demand Points (Tompkins 10.8)")
+        load_ex4 = col_ex4.button("Example 4", help="12 Demand Points (Francis 9.1)")
+        
+        if load_ex1:
+            m_new = 5
+            st.session_state.m_val_mm_sf = m_new
+            st.session_state["m_input_mm_sf"] = m_new
+            st.session_state.mm_sf_df = pd.DataFrame({
+                "a (x-coord)": [4.0, 5.0, 13.0, 10.0, 4.0],
+                "b (y-coord)": [3.0, 11.0, 13.0, 6.0, 6.0]
+            }, index=[f"DP{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    st.sidebar.markdown("### Demand Point Locations")
+        if load_ex2:
+            m_new = 19
+            st.session_state.m_val_mm_sf = m_new
+            st.session_state["m_input_mm_sf"] = m_new
+            st.session_state.mm_sf_df = pd.DataFrame({
+                "a (x-coord)": [2.0, 2.0, 4.0, 4.0, 4.0, 6.0, 6.0, 6.0, 6.0, 8.0, 8.0, 10.0, 12.0, 12.0, 12.0, 12.0, 14.0, 14.0, 14.0],
+                "b (y-coord)": [2.0, 4.0, 6.0, 10.0, 12.0, 2.0, 4.0, 10.0, 12.0, 4.0, 8.0, 10.0, 4.0, 8.0, 12.0, 14.0, 2.0, 12.0, 14.0]
 
-    default_points = [
-        (4.0, 3.0),
-        (5.0, 11.0),
-        (13.0, 13.0),
-        (10.0, 6.0),
-        (4.0, 6.0),
-    ]
+            }, index=[f"DP{i+1}" for i in range(m_new)])
+            st.rerun()
 
-    manual_data = []
+        if load_ex3:
+            m_new = 4
+            st.session_state.m_val_mm_sf = m_new
+            st.session_state["m_input_mm_sf"] = m_new
+            st.session_state.mm_sf_df = pd.DataFrame({
+                "a (x-coord)": [20.0, 25.0, 13.0, 25.0, 4.0, 18.0],
+                "b (y-coord)": [15.0, 25.0, 32.0, 14.0, 21.0, 8.0]
 
-    for i in range(m):
-        col1, col2 = st.sidebar.columns(2)
+            }, index=[f"DP{i+1}" for i in range(m_new)])
+            st.rerun()
 
-        if i < len(default_points):
-            a0, b0 = default_points[i]
+        if load_ex4:
+            m_new = 12
+            st.session_state.m_val_mm_sf = m_new
+            st.session_state["m_input_mm_sf"] = m_new
+            st.session_state.mm_sf_df = pd.DataFrame({
+                "a (x-coord)": [0.0, 2.0, 3.0, 3.0, 4.0, 8.0, 9.0, 8.0, 7.0, 5.0, 4.0, 2.0],
+                "b (y-coord)": [3.0, 7.0, 7.0, 10.0, 7.0, 7.0, 6.0, 5.0, 6.0, 6.0, 3.0, 1.0]
+
+            }, index=[f"DP{i+1}" for i in range(m_new)])
+            st.rerun()
+
+    # --- B. CSV Loader ---
+    with st.sidebar.expander("Upload CSV Data", expanded=False):
+        uploaded_file = st.file_uploader(
+            "Upload Minimax SFL data (CSV)",
+            type=["csv"]
+        )
+        has_header = st.checkbox("My data has headers", value=True)
+        st.caption("CSV format: 2 numeric columns (a, b). No empty cells.")
+
+        # Process newly uploaded file
+        if uploaded_file is not None:
+            # Check if this is a NEW upload by comparing file_ids
+            if st.session_state.uploaded_csv_id_mm_sf != uploaded_file.file_id:
+                try:
+                    if has_header:
+                        df = pd.read_csv(uploaded_file)
+                    else:
+                        df = pd.read_csv(uploaded_file, header=None)
+                    
+                    # Validation
+                    if len(df.columns) != 2:
+                        st.error("CSV must contain exactly 2 columns: a, b")
+                    elif df.isnull().any().any():
+                        st.error("CSV contains empty cells")
+                    else:
+                        df = df.astype(float)
+                        df.columns = ["a (x-coord)", "b (y-coord)"]
+                        
+                        m_new = len(df)
+                        df.index = [f"DP{i+1}" for i in range(m_new)]
+                        
+                        # Update session state with CSV data
+                        st.session_state.m_val_mm_sf = m_new
+                        st.session_state["m_input_mm_sf"] = m_new
+                        st.session_state.mm_sf_df = df
+                        st.session_state.uploaded_csv_id_mm_sf = uploaded_file.file_id
+                        
+                        st.rerun() # Refresh to show CSV data in the table
+                except Exception as e:
+                    st.error(f"Invalid CSV file: {e}")
+                    # Prevent infinite looping on a bad file
+                    st.session_state.uploaded_csv_id_mm_sf = uploaded_file.file_id 
         else:
-            a0 = float(i + 1)
-            b0 = float(i + 1)
-
-        a = col1.number_input(
-            f"a{i+1}",
-            key=f"mm_a{i}",
-            value=a0,
-            step=0.1,
-            format="%.2f"
-        )
-
-        b = col2.number_input(
-            f"b{i+1}",
-            key=f"mm_b{i}",
-            value=b0,
-            step=0.1,
-            format="%.2f"
-        )
-
-        manual_data.append((a, b))
+            # Reset tracker if user clicks "X" to remove the uploaded file
+            st.session_state.uploaded_csv_id_mm_sf = None
 
     # ==================================================
-    # CASE 2: CSV UPLOAD (OPTIONAL OVERRIDE)
+    # 2. TABULAR DATA EDITOR (Manual Input / Edits)
     # ==================================================
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Upload CSV (Optional)")
+    st.sidebar.subheader("Manual Data")
 
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload Minimax SFL data (CSV)",
-        type=["csv"]
+    m = st.sidebar.number_input(
+        "Number of demand points ($m$)",
+        min_value=1, 
+        step=1,
+        value=st.session_state.m_val_mm_sf,
+        key="m_input_mm_sf"
     )
 
-    has_header = st.sidebar.checkbox("My data has headers", value=True)
+    dims_changed = (m != st.session_state.m_val_mm_sf)
+    st.session_state.m_val_mm_sf = m
 
-    st.sidebar.markdown(
-        """
-        **CSV format:**  
-        - Columns: `a, b`  
-        - All values numeric  
-        - No empty cells  
-        """
+    # If dimensions changed manually, or dataframe doesn't exist, rebuild a blank one
+    if dims_changed or "mm_sf_df" not in st.session_state or len(st.session_state.mm_sf_df) != m:
+        st.session_state.mm_sf_df = pd.DataFrame({
+            "a (x-coord)": [float(i + 1) for i in range(m)],
+            "b (y-coord)": [float(i + 1) for i in range(m)]
+        }, index=[f"DP{i+1}" for i in range(m)])
+
+    # The data_editor now holds user manual data OR the uploaded CSV / Example data
+    mm_sf_df = st.sidebar.data_editor(
+        st.session_state.mm_sf_df,
+        key="mm_sf_table",
+        num_rows="fixed",
+        use_container_width=True
     )
 
-    if uploaded_file is not None:
-        try:
-            # ---- Read CSV ----
-            if has_header:
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_csv(uploaded_file, header=None)
-                df.columns = ["a", "b"]
-
-            # ---- Validation (unchanged) ----
-            if list(df.columns) != ["a", "b"]:
-                st.sidebar.error("CSV must contain exactly columns: a, b")
-                return []
-
-            if df.isnull().any().any():
-                st.sidebar.error("CSV contains empty cells")
-                return []
-
-            df = df.astype(float)
-
-            st.sidebar.success("CSV loaded successfully (manual input ignored)")
-            return list(df.itertuples(index=False, name=None))
-
-        except Exception as e:
-            st.sidebar.error(f"Invalid CSV file: {e}")
-            return []
+    if mm_sf_df.isnull().any().any():
+        st.sidebar.error("Demand Point table contains empty cells.")
+        return []
 
     # ==================================================
-    # DEFAULT: USE MANUAL INPUT
+    # 3. RETURN DATA
     # ==================================================
-    return manual_data
-
+    # Extract final data from DataFrame to list of tuples: [(a, b), ...]
+    return list(mm_sf_df.itertuples(index=False, name=None))
 
 
 def show_minimax_sfl(data):

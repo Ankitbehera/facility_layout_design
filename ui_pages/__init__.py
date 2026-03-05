@@ -4,5 +4,6 @@ from . import home
 from . import minisum_sfl
 from . import minimax_sfl
 from . import minisum_mfl
-from . import lap
+from . import setcovering
+from . import assignment
 from . import references

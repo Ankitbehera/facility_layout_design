@@ -85,8 +85,11 @@ def show_home():
         if st.button("Minisum Multiple Facility Location", use_container_width=True):
             _go_to("Minisum Multiple Facility Location")
 
-        if st.button("Location Allocation Problems", use_container_width=True):
-            _go_to("Location Allocation Problems")
+        if st.button("Set Covering", use_container_width=True):
+            _go_to("Set Covering")
+
+        if st.button("Assignment Problem", use_container_width=True):
+            _go_to("Assignment Problem")
 
         st.markdown("---")
 
