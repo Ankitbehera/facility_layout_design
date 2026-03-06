@@ -857,8 +857,8 @@ def show_minisum_mfl(data):
                 When located optimally, each new facility resides at the **median location** with respect to all other facilities (both Existing and New) with which it interacts.
 
                 **4. Distinctness Condition (Optimality):**
-                If the algorithm converges such that **no two new facilities share the same location** for either $x$ or $y$ coordinates ($x_1$ ≠ $x_2$ ≠ $x_3$…. & $y_1$ ≠ $y_2$ ≠ $y_3$…), the solution is guaranteed to be the global optimum.
-        
+                If the algorithm converges such that **no two new facilities share the same coordinate value** ($x_j ≠ x_k$ & $y_j ≠ y_k$ ∀ $j ≠ k$), the solution obtained is optimal. If any two facilities share an X or a Y coordinate, multiple optimal solutions or a local optimum may exist.
+                
                 ---
                 **Algorithm Procedure:**
                 1. **Initialize:** Set $v_{jk}=0$ and solve $n$ independent single-facility problems.

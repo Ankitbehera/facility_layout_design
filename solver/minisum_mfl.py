@@ -140,85 +140,82 @@ def solve_minisum_mfl(existing, w_ji, v_jk, max_iter=50, tol=1e-6):
 def check_multiple_solutions(ef_coords, w_matrix, v_matrix, X_opt):
     """
     Checks for multiple optimal solutions and calculates the valid range.
-    Returns a list of warning dictionaries:
-    [
-      {"type": "property4", "msg": "..."}, 
-      {"type": "flat", "msg": "...", "range": "[10, 20]"}
-    ]
     """
     messages = []
     n = len(X_opt)
     m = len(ef_coords)
     
-    # 1. Check Property 4 (Distinctness)
-    # If two NFs share the same x or y, it's a red flag.
-    shared_warnings = []
+    # --------------------------------------------------------------------------
+    # 1. Check Property 4 (Distinctness) PER AXIS
+    # --------------------------------------------------------------------------
+    prop4_violations = []
     for j in range(n):
         for k in range(j + 1, n):
-            if (abs(X_opt[j][0] - X_opt[k][0]) < 1e-4) and (abs(X_opt[j][1] - X_opt[k][1]) < 1e-4):
-                shared_warnings.append(f"NF{j+1} & NF{k+1}")
+            # Check X-axis
+            if abs(X_opt[j][0] - X_opt[k][0]) < 1e-4:
+                prop4_violations.append(f"NF{j+1} & NF{k+1} share X-coord ({X_opt[j][0]:.2f})")
+            # Check Y-axis
+            if abs(X_opt[j][1] - X_opt[k][1]) < 1e-4:
+                prop4_violations.append(f"NF{j+1} & NF{k+1} share Y-coord ({X_opt[j][1]:.2f})")
     
-    if shared_warnings:
+    if prop4_violations:
         messages.append({
             "type": "property4",
-            "msg": f"**Coincidence Warning (Property 4 Violated):** {', '.join(shared_warnings)} are at the exact same location. The algorithm may be trapped in a local optimum."
+            "msg": f"**Coincidence Warning (Property 4 Violated):** {'; '.join(prop4_violations)}. "
+                   f"The Coordinate Descent algorithm may be trapped in a local optimum or have multiple optimal solutions. "
+                   f"You MUST use the Linear Programming (LP) solver to confirm."
         })
 
-    # 2. Check "Flat Median" Condition (Left Weight == Right Weight)
+    # --------------------------------------------------------------------------
+    # 2. Check "Flat Median" Condition 
+    # --------------------------------------------------------------------------
     for dim, dim_name in [(0, 'x'), (1, 'y')]:
         for j in range(n):
-            current_val = X_opt[j][dim]
-            
-            # Collect all interacting coordinates and their weights
             relevant_points = []
             
             # EF Weights
             for i in range(m):
                 w = w_matrix[j][i]
                 if w > 0:
-                    relevant_points.append({'coord': ef_coords[i][dim], 'weight': w, 'type': f'EF{i+1}'})
+                    relevant_points.append({'coord': ef_coords[i][dim], 'weight': w})
             
             # NF Weights (Fixed locations of others)
             for k in range(n):
                 if j == k: continue
                 v = v_matrix[j][k] if k > j else v_matrix[k][j]
                 if v > 0:
-                    relevant_points.append({'coord': X_opt[k][dim], 'weight': v, 'type': f'NF{k+1}'})
+                    relevant_points.append({'coord': X_opt[k][dim], 'weight': v})
 
-            # Calculate Forces
-            left_weight = sum(p['weight'] for p in relevant_points if p['coord'] < current_val - 1e-5)
-            right_weight = sum(p['weight'] for p in relevant_points if p['coord'] > current_val + 1e-5)
+            # Aggregate weights for identical coordinates to prevent premature 50% triggers
+            from collections import defaultdict
+            coord_weights = defaultdict(float)
+            for p in relevant_points:
+                coord_weights[round(p['coord'], 5)] += p['weight']
+                
+            sorted_coords = sorted(coord_weights.keys())
+            total_w = sum(coord_weights.values())
+            cum_w = 0.0
             
-            # If weights are balanced, we are in a flat region.
-            # We need to find the NEAREST neighbors to define the range.
-            if abs(left_weight - right_weight) < 1e-4:
-                # Find bound_low (nearest point <= current) and bound_high (nearest point >= current)
-                # Actually, in a flat region, the range is usually between two critical points.
+            for idx, c in enumerate(sorted_coords):
+                cum_w += coord_weights[c]
                 
-                sorted_coords = sorted([p['coord'] for p in relevant_points])
-                
-                # Find immediate neighbors in the sorted list
-                lower_bound = current_val
-                upper_bound = current_val
-                
-                # Search below
-                below = [z for z in sorted_coords if z < current_val - 1e-5]
-                if below: lower_bound = max(below)
-                
-                # Search above
-                above = [z for z in sorted_coords if z > current_val + 1e-5]
-                if above: upper_bound = min(above)
-                
-                # Format the range string
-                if abs(lower_bound - upper_bound) > 1e-4:
-                    range_str = f"[{lower_bound:.2f}, {upper_bound:.2f}]"
-                    messages.append({
-                        "type": "flat",
-                        "facility": f"NF{j+1}",
-                        "axis": dim_name,
-                        "range": range_str,
-                        "msg": f"**Multiple Solutions for NF{j+1} ({dim_name}-axis):** Weights are perfectly balanced. Optimal Range: {range_str}"
-                    })
+                # Check if cumulative weight is EXACTLY 50% of total weight
+                if abs(cum_w - total_w / 2.0) < 1e-5:
+                    # The flat region exists between this coordinate and the next distinct coordinate
+                    if idx + 1 < len(sorted_coords):
+                        lower_bound = c
+                        upper_bound = sorted_coords[idx + 1]
+                        
+                        if abs(upper_bound - lower_bound) > 1e-4:
+                            range_str = f"[{lower_bound:.2f}, {upper_bound:.2f}]"
+                            messages.append({
+                                "type": "flat",
+                                "facility": f"NF{j+1}",
+                                "axis": dim_name,
+                                "range": range_str,
+                                "msg": f"**Multiple Solutions for NF{j+1} ({dim_name}-axis):** Cumulative weight reached exactly 50%. Optimal Range: {range_str}"
+                            })
+                    break # Once we pass 50%, there are no more optimal medians
 
     return messages
 
@@ -565,9 +562,20 @@ def plot_mfl_solution(existing_coords, new_coords, w_matrix, v_matrix):
         ax.annotate(f'$P_{{{i+1}}}$', (x, y), textcoords="offset points", 
                     xytext=(0,-18), ha='center', fontsize=9, color=color_ef)
 
+    # Group new facilities with the exact same coordinates to prevent label overlap
+    from collections import defaultdict
+    nf_locations = defaultdict(list)
     for j, (x, y) in enumerate(new_coords):
-        ax.annotate(f'$X_{{{j+1}}}$', (x, y), textcoords="offset points", 
-                    xytext=(0,12), ha='center', fontsize=10, fontweight='bold', color=color_nf)
+        nf_locations[(round(x, 4), round(y, 4))].append(j + 1)
+
+    for (x, y), nf_indices in nf_locations.items():
+        # Create a combined label, e.g., "X_1, X_2"
+        label = ", ".join([f'$X_{{{idx}}}$' for idx in nf_indices])
+        # Shift text higher if there are multiple facilities sharing the spot
+        y_offset = 12 + (len(nf_indices) - 1) * 4
+        ax.annotate(label, (x, y), textcoords="offset points", 
+                    xytext=(0, y_offset), ha='center', fontsize=10, 
+                    fontweight='bold', color=color_nf)
 
     # -----------------------------
     # 4. Legend & Formatting
@@ -703,8 +711,17 @@ def plot_trajectory(existing_coords, history_X, w_matrix, v_matrix):
     # Labels
     for i, (x, y) in enumerate(existing_coords):
         ax.text(x, y - 1.2, f'$P_{{{i+1}}}$', fontsize=8, ha='center', color=color_ef)
+        
+    # Group new facilities with the exact same coordinates
+    from collections import defaultdict
+    nf_locations = defaultdict(list)
     for j, (x, y) in enumerate(optimal_coords):
-        ax.text(x, y + 1.2, f'$X_{{{j+1}}}$', fontsize=9, fontweight='bold', ha='center', color=color_nf)
+        nf_locations[(round(x, 4), round(y, 4))].append(j + 1)
+
+    for (x, y), nf_indices in nf_locations.items():
+        label = ", ".join([f'$X_{{{idx}}}$' for idx in nf_indices])
+        y_offset = 1.2 + (len(nf_indices) - 1) * 0.5
+        ax.text(x, y + y_offset, label, fontsize=9, fontweight='bold', ha='center', color=color_nf)
 
     # Legend & Formatting
     legend_elements = [
