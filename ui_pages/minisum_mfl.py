@@ -37,7 +37,7 @@ def build_inputs():
         
         # Buttons
         load_ex1 = col_ex1.button("Example 1", help="Unique Sol. (m =4 n=2)")
-        load_ex2 = col_ex2.button("Example 2", help="Unique Sol. (Tompkins 10.13 m=5 n=2)")
+        load_ex2 = col_ex2.button("Example 2", help="Multiple Sol. (Tompkins 10.13 m=5 n=2)")
         load_ex3 = col_ex3.button("Example 3", help="Multiple Sol. (m=6 n= 3)")
         load_ex4 = col_ex4.button("Example 4", help="Multiple Sol. (Tompkins 10.14 m=6 n=3)")
         
@@ -588,39 +588,42 @@ def show_minisum_mfl(data):
         # --------------------------------------------------
         st.markdown("### Constraints")
         
-        col_c1, col_c2 = st.columns(2)
+        show_constraints = st.checkbox("Show Detailed LP Constraints",value = True)
+
+        if show_constraints:
+            col_c1, col_c2 = st.columns(2)
+
+            with col_c1:
+                st.markdown("**X-Coordinates**")
+                # EF Constraints
+                for j in range(n):
+                    for i in range(m):
+                        # Uses original index i directly
+                        val = ef_df.iloc[i, 0]
+                        st.latex(rf"x_{{{j+1}}} - r_{{{j+1}{i+1}}} + s_{{{j+1}{i+1}}} = {val:g}")
         
-        with col_c1:
-            st.markdown("**X-Coordinates**")
-            # EF Constraints
-            for j in range(n):
-                for i in range(m):
-                    # Uses original index i directly
-                    val = ef_df.iloc[i, 0]
-                    st.latex(rf"x_{{{j+1}}} - r_{{{j+1}{i+1}}} + s_{{{j+1}{i+1}}} = {val:g}")
-            
-            # NF Constraints (UPDATED SIGNS)
-            if n > 1:
-                st.markdown("---")
+                # NF Constraints (UPDATED SIGNS)
+                if n > 1:
+                    st.markdown("---")
+                    for j in range(n):
+                        for k in range(j+1, n):
+                            st.latex(rf"x_{{{j+1}}} - x_{{{k+1}}} - p_{{{j+1}{k+1}}} + q_{{{j+1}{k+1}}} = 0")
+                
+            with col_c2:
+                st.markdown("**Y-Coordinates**")
+                # EF Constraints
                 for j in range(n):
-                    for k in range(j+1, n):
-                        st.latex(rf"x_{{{j+1}}} - x_{{{k+1}}} - p_{{{j+1}{k+1}}} + q_{{{j+1}{k+1}}} = 0")
-                        
-        with col_c2:
-            st.markdown("**Y-Coordinates**")
-            # EF Constraints
-            for j in range(n):
-                for i in range(m):
-                    # Uses original index i directly
-                    val = ef_df.iloc[i, 1]
-                    st.latex(rf"y_{{{j+1}}} - u_{{{j+1}{i+1}}} + d_{{{j+1}{i+1}}} = {val:g}")
-            
-            # NF Constraints (UPDATED SIGNS)
-            if n > 1:
-                st.markdown("---")
-                for j in range(n):
-                    for k in range(j+1, n):
-                        st.latex(rf"y_{{{j+1}}} - y_{{{k+1}}} - a_{{{j+1}{k+1}}} + b_{{{j+1}{k+1}}} = 0")
+                    for i in range(m):
+                        # Uses original index i directly
+                        val = ef_df.iloc[i, 1]
+                        st.latex(rf"y_{{{j+1}}} - u_{{{j+1}{i+1}}} + d_{{{j+1}{i+1}}} = {val:g}")
+        
+                # NF Constraints (UPDATED SIGNS)
+                if n > 1:
+                    st.markdown("---")
+                    for j in range(n):
+                        for k in range(j+1, n):
+                            st.latex(rf"y_{{{j+1}}} - y_{{{k+1}}} - a_{{{j+1}{k+1}}} + b_{{{j+1}{k+1}}} = 0")
 
         # --------------------------------------------------
         # Solve LP
@@ -650,7 +653,7 @@ def show_minisum_mfl(data):
                 columns=["x*", "y*"],
                 index=[f"NF{j+1}" for j in range(n)]
             )
-            st.markdown(rf"##### Total Min Cost: {lp_result['obj']}")
+            st.markdown(rf"### Total Min Cost: {lp_result['obj']}")
             st.table(res_df)
             
             # -----------------------------
@@ -922,6 +925,43 @@ def show_minisum_mfl(data):
         # 3. Detailed Step-by-Step Instructions
         # --------------------------------------------------
         st.markdown("### Detailed Computational Steps")
+       
+        
+        # --- Symbolic Objective Function Display ---
+        st.caption("This is the full cost function $f(X, Y)$ used for substitution in each iteration:")
+
+        def get_latex_for_dim(dim_idx, var_char):
+            parts = []
+            # 1. New-Existing Interactions (w_ji)
+            for j in range(n):
+                for i in range(m):
+                    w = w_matrix[j][i]
+                    if w > 0:
+                        coord = ef_coords[i][dim_idx]
+                        parts.append(rf"{w:g}|{var_char}_{{{j+1}}} - {coord:g}|")
+    
+            # 2. New-New Interactions (v_jk)
+            for j in range(n):
+                for k in range(j + 1, n):
+                    # Access weight symmetrically as defined in solve_minisum_mfl
+                    v_val = v_matrix[j][k] if k > j else v_matrix[k][j]
+                    if v_val > 0:
+                        parts.append(rf"{v_val:g}|{var_char}_{{{j+1}}} - {var_char}_{{{k+1}}}|")
+    
+            return " + ".join(parts)
+
+        # 1. Create explicit variable strings (e.g., "x_1, x_2, x_3")
+        x_var_list = ", ".join([f"x_{{{j+1}}}" for j in range(n)])
+        y_var_list = ", ".join([f"y_{{{j+1}}}" for j in range(n)])
+
+        # 2. Generate the mathematical expressions
+        f1_expression = get_latex_for_dim(0, 'x')
+        f2_expression = get_latex_for_dim(1, 'y')
+
+        # 3. Display with explicit function arguments
+        st.latex(rf"f_1({x_var_list}) = " + f1_expression)
+        st.latex(rf"f_2({y_var_list}) = " + f2_expression)
+
         st.markdown("The following steps detail the mathematical procedure for each iteration.")
 
         # --- Helper to format the objective string (Sorted by Coordinate Value) ---
@@ -984,17 +1024,38 @@ def show_minisum_mfl(data):
             )
             # Display Iteration 0 result (from history[0])
             init_coords = result_cd["history"][0]
-            
-            cols = st.columns(len(init_coords))
-            for j, (x, y) in enumerate(init_coords):
-                with cols[j]:
-                    st.markdown(f"**NF{j+1} Initial:**")
-                    st.latex(rf"x_{{{j+1}}} = {x:g}, \quad y_{{{j+1}}} = {y:g}")
+    
+            for j in range(len(init_coords)):
+                col_x, col_y = st.columns(2)
+        
+                # --- X Coordinate Logic ---
+                with col_x:
+                    st.markdown(f"**Initialize $x_{{{j+1}}}$:**")                                
+                    # Generate Equation (Pass [] for current_nfs to drop all v_jk terms)
+                    latex_eq = format_objective_latex(
+                        j, 0, "x", [], ef_coords, w_matrix, v_matrix
+                    )
+                    st.latex(latex_eq)            
+                    new_x = init_coords[j][0]
+                    st.markdown(f"Apply Median Method $\\rightarrow$ **$x_{{{j+1}}} = {new_x:g}$**")
+
+                # --- Y Coordinate Logic ---
+                with col_y:
+                    st.markdown(f"**Initialize $y_{{{j+1}}}$:**")                                
+                    # Generate Equation
+                    latex_eq_y = format_objective_latex(
+                        j, 1, "y", [], ef_coords, w_matrix, v_matrix
+                    )
+                    st.latex(latex_eq_y)            
+                    new_y = init_coords[j][1]
+                    st.markdown(f"Apply Median Method $\\rightarrow$ **$y_{{{j+1}}} = {new_y:g}$**")
+        
+                # Visual separator
+                if j < len(init_coords) - 1:
+                    st.divider()
         
         # SUBSEQUENT ITERATIONS
-        # Note: result_cd['history'] stores the state at the END of each iteration.
-        # We need to reconstruct the intermediate "moves" for the explanation.
-        
+               
         current_state = list(result_cd["history"][0]) # Start with iter 0
         
         # Loop through history (excluding the 0th init state)
@@ -1020,7 +1081,7 @@ def show_minisum_mfl(data):
                         fixed_desc = []
                         for k, (fx, fy) in enumerate(temp_state_for_display):
                             if k != j:
-                                fixed_desc.append(f"NF{k+1} at $x={fx:g}$")
+                                fixed_desc.append(f"NF{k+1} at $x_{k+1}={fx:g}$")
                         
                         st.markdown(f"Fix {', '.join(fixed_desc)}.")
                         
@@ -1042,7 +1103,7 @@ def show_minisum_mfl(data):
                         fixed_desc_y = []
                         for k, (fx, fy) in enumerate(temp_state_for_display):
                             if k != j:
-                                fixed_desc_y.append(f"NF{k+1} at $y={fy:g}$")
+                                fixed_desc_y.append(f"NF{k+1} at $y_{k+1}={fy:g}$")
                         
                         st.markdown(f"Fix {', '.join(fixed_desc_y)}.")
                         
@@ -1123,8 +1184,13 @@ def show_minisum_mfl(data):
 
         with col_plot1:
             st.markdown("**Cost Reduction**")
+            # Calculate the cost at each historical step
+            history_costs = [
+                slv.minisum_cost(state, ef_coords, w_matrix, v_matrix) 
+                for state in result_cd["history"]
+            ]
             # Visualization of the objective function value over iterations 
-            fig_cost = slv.plot_cost_history(cost_history)
+            fig_cost = slv.plot_cost_history(history_costs)
             st.pyplot(fig_cost)
             st.caption("Total cost decreases monotonically at each iteration until convergence is reached.")
 
@@ -1516,4 +1582,4 @@ def show_minisum_mfl(data):
             fig_traj.axes[0].set_title("Euclidean Optimization Path (Curved Descent)", fontsize=10)
         
             st.pyplot(fig_traj, use_container_width=True)
-            st.caption("Notice how the path follows a smooth curve (Gradient Descent) compared to the 'staircase' steps of Coordinate Descent.")
+            st.caption("Notice how the path follows a smooth curve (Weiszfeld Iteration) compared to the 'staircase' steps of Rectilinear Coordinate Descent.")

@@ -89,7 +89,7 @@ def solve_minisum_mfl(existing, w_ji, v_jk, max_iter=50, tol=1e-6):
         y0 = weighted_median(b_vals, weights)
         X.append([x0, y0])
 
-    history = [X.copy()]
+    history = [[tuple(p) for p in X]]
 
     # -----------------------------
     # Iterations
@@ -114,7 +114,10 @@ def solve_minisum_mfl(existing, w_ji, v_jk, max_iter=50, tol=1e-6):
                 if k != t:
                     a_vals.append(X[k][0])
                     b_vals.append(X[k][1])
-                    weights.append(v_jk[t][k])
+                        
+                    # Symmetric access: safely handle upper triangular matrices
+                    v_val = v_jk[t][k] if k > t else v_jk[k][t]
+                    weights.append(v_val)
 
             # Update location using weighted median
             X[t][0] = weighted_median(a_vals, weights)
@@ -607,6 +610,8 @@ def plot_cost_history(history_obj):
     Plots the convergence of the objective function (Total Cost).
     Style: Matches Tab 2 (Academic/Publication quality).
     """
+    from matplotlib.ticker import MaxNLocator  # Import the integer locator
+    
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     
     iterations = range(len(history_obj))
@@ -614,6 +619,9 @@ def plot_cost_history(history_obj):
     # Plot Line
     ax.plot(iterations, history_obj, marker='o', markersize=4, 
             linestyle='-', color='#1f77b4', linewidth=1.5, label='Total Cost')
+    
+    # Force X-axis to show only integers
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     
     # Styling
     ax.set_title("Objective Function Convergence", fontsize=11, pad=10)
