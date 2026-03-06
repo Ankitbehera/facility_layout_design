@@ -11,18 +11,15 @@ import solver.minisum_sfl as slv
 import io
 import pulp
 
-import streamlit as st
-import pandas as pd
-
 def build_inputs():
     # --------------------------------------------------
     # Sidebar: Data Input (Minisum SFL)
     # --------------------------------------------------
     st.sidebar.header("Input Data")
 
-    # Initialize Session State Variables
-    if "m_val_sf" not in st.session_state: 
-        st.session_state.m_val_sf = 4
+    # Initialize Session State Variables    
+    if "m_input_sf" not in st.session_state: 
+        st.session_state["m_input_sf"] = 4
     if "uploaded_csv_id" not in st.session_state:
         st.session_state.uploaded_csv_id = None
 
@@ -46,8 +43,7 @@ def build_inputs():
     
         if load_ex1:
             m_new = 4
-            st.session_state.m_val_sf = m_new
-            st.session_state["m_input_sf"] = m_new
+            st.session_state["m_input_sf"] = m_new  # Automatically updates the number_input
             st.session_state.sf_df = pd.DataFrame({
                 "a (x-coord)": [0.0, 0.0, 2.0, 4.0],
                 "b (y-coord)": [2.0, 4.0, 0.0, 0.0],
@@ -57,7 +53,6 @@ def build_inputs():
 
         if load_ex2:
             m_new = 6
-            st.session_state.m_val_sf = m_new
             st.session_state["m_input_sf"] = m_new
             st.session_state.sf_df = pd.DataFrame({
                 "a (x-coord)": [5.0,50.0,25.0,35.0,15.0,30.0],
@@ -68,7 +63,6 @@ def build_inputs():
 
         if load_ex3:
             m_new = 4
-            st.session_state.m_val_sf = m_new
             st.session_state["m_input_sf"] = m_new
             st.session_state.sf_df = pd.DataFrame({
                 "a (x-coord)": [5,7,4,16],
@@ -79,7 +73,6 @@ def build_inputs():
 
         if load_ex4:
             m_new = 6
-            st.session_state.m_val_sf = m_new
             st.session_state["m_input_sf"] = m_new
             st.session_state.sf_df = pd.DataFrame({
                 "a (x-coord)": [1,2,3,1,-5,-3],
@@ -120,7 +113,6 @@ def build_inputs():
                         df.index = [f"EF{i+1}" for i in range(m_new)]
                         
                         # Update session state with CSV data
-                        st.session_state.m_val_sf = m_new
                         st.session_state["m_input_sf"] = m_new
                         st.session_state.sf_df = df
                         st.session_state.uploaded_csv_id = uploaded_file.file_id
@@ -144,15 +136,11 @@ def build_inputs():
         "Number of existing facilities ($m$)",
         min_value=1, 
         step=1,
-        value=st.session_state.m_val_sf,
-        key="m_input_sf"
+        key="m_input_sf" # <--- Removed `value=` to fix Streamlit warning
     )
 
-    dims_changed = (m != st.session_state.m_val_sf)
-    st.session_state.m_val_sf = m
-
-    # If dimensions changed manually, or dataframe doesn't exist, rebuild a blank one
-    if dims_changed or "sf_df" not in st.session_state or len(st.session_state.sf_df) != m:
+    # If the widget value (m) doesn't match the dataframe length, rebuild a blank one
+    if "sf_df" not in st.session_state or len(st.session_state.sf_df) != m:
         st.session_state.sf_df = pd.DataFrame({
             "a (x-coord)": [float(i + 1) for i in range(m)],
             "b (y-coord)": [float(i + 1) for i in range(m)],

@@ -13,12 +13,18 @@ Minisum Multiple Facility Location Problem (UI)
 # ------------------------------------------------------------------------------
 # Input Builder
 # ------------------------------------------------------------------------------
-
 def build_inputs():
     # ==================================================
     # Sidebar: Input Data (Minisum MFL)
     # ==================================================
     st.sidebar.header("Input Data")
+
+    # Initialize session state for m and n if not present
+    # Using ONLY the widget keys
+    if "m_input" not in st.session_state: 
+        st.session_state["m_input"] = 4
+    if "n_input" not in st.session_state: 
+        st.session_state["n_input"] = 2
 
     # --------------------------------------------------
     # 0. Example Loader
@@ -30,18 +36,15 @@ def build_inputs():
         col_ex3, col_ex4 = st.columns(2)
         
         # Buttons
-        load_ex1 = col_ex1.button("Example 1", help="Unique 1")
-        load_ex2 = col_ex2.button("Example 2", help="Unique 2")
-        load_ex3 = col_ex3.button("Example 3", help="Multiple 1")
-        load_ex4 = col_ex4.button("Example 4", help="Unique 3")
+        load_ex1 = col_ex1.button("Example 1", help="Unique Sol. (m =4 n=2)")
+        load_ex2 = col_ex2.button("Example 2", help="Unique Sol. (Tompkins 10.13 m=5 n=2)")
+        load_ex3 = col_ex3.button("Example 3", help="Multiple Sol. (m=6 n= 3)")
+        load_ex4 = col_ex4.button("Example 4", help="Multiple Sol. (Tompkins 10.14 m=6 n=3)")
         
     # Logic to load examples into Session State
-    # We must update "m_input" and "n_input" keys to force the widgets to update visually
     if load_ex1:
         # --- Example 1: Default Textbook ---
         m_new, n_new = 4, 2
-        st.session_state.m_val = m_new
-        st.session_state.n_val = n_new
         st.session_state["m_input"] = m_new
         st.session_state["n_input"] = n_new
         
@@ -62,34 +65,32 @@ def build_inputs():
         st.rerun()
 
     if load_ex2:
-        # --- Example 2: Numerical Example 2 ---
-        m_new, n_new = 4, 2
-        st.session_state.m_val = m_new
-        st.session_state.n_val = n_new
+        # --- Example 2: Problem 10.13 ---
+        m_new, n_new = 5, 2
         st.session_state["m_input"] = m_new
         st.session_state["n_input"] = n_new
 
         st.session_state.ef_df = pd.DataFrame({
-            "a_i (x-coordinate)": [0, 4, 6, 10],
-            "b_i (y-coordinate)": [2, 0, 8, 4]
-        }, index=[f"EF{i+1}" for i in range(4)])
-        
+            "a_i (x-coordinate)": [10, 10, 15, 20, 25],
+            "b_i (y-coordinate)": [25, 15, 30, 10, 25]
+        }, index=[f"EF{i+1}" for i in range(5)])
+    
         st.session_state.w_df = pd.DataFrame([
-            [5, 3, 0, 0], [0, 1, 8, 4]
-        ], index=["NF1", "NF2"], columns=[f"EF{i+1}" for i in range(4)])
-        
-        # V matrix: v12 = 6
+            [10, 6, 5, 4, 3],
+            [2, 3, 4, 6, 12]
+        ], index=["NF1", "NF2"], columns=[f"EF{i+1}" for i in range(5)])
+    
+        # V matrix: v12 = 4
         v_in = pd.DataFrame("", index=["NF1", "NF2"], columns=["NF1", "NF2"])
-        v_in.iloc[0, 1] = "6"
+        v_in.iloc[0, 1] = "4"
         v_in.iloc[1, 0] = "auto-fill"
         st.session_state.v_input = v_in
         st.rerun()
 
+
     if load_ex3:
         # --- Example 3: 3 NFs, 6 EFs ---
         m_new, n_new = 6, 3
-        st.session_state.m_val = m_new
-        st.session_state.n_val = n_new
         st.session_state["m_input"] = m_new
         st.session_state["n_input"] = n_new
 
@@ -116,30 +117,33 @@ def build_inputs():
         st.rerun()
 
     if load_ex4:
-        # --- Example 4: Machine Shop ---
-        m_new, n_new = 5, 2
-        st.session_state.m_val = m_new
-        st.session_state.n_val = n_new
+        # --- Example 4: Problem 10.14 ---
+        m_new, n_new = 6, 3
         st.session_state["m_input"] = m_new
         st.session_state["n_input"] = n_new
 
         st.session_state.ef_df = pd.DataFrame({
-            "a_i (x-coordinate)": [10, 10, 15, 20, 25],
-            "b_i (y-coordinate)": [25, 15, 30, 10, 25]
-        }, index=[f"EF{i+1}" for i in range(5)])
-        
+            "a_i (x-coordinate)": [0, 15, 10, 5, 20, 25],
+            "b_i (y-coordinate)": [10, 0, 25, 15, 20, 5]
+        }, index=[f"EF{i+1}" for i in range(6)])
+    
         st.session_state.w_df = pd.DataFrame([
-            [10, 6, 5, 4, 3],
-            [2, 3, 4, 6, 12]
-        ], index=["NF1", "NF2"], columns=[f"EF{i+1}" for i in range(5)])
-        
-        # V matrix: v12 = 4
-        v_in = pd.DataFrame("", index=["NF1", "NF2"], columns=["NF1", "NF2"])
-        v_in.iloc[0, 1] = "4"
-        v_in.iloc[1, 0] = "auto-fill"
+            [4, 2, 0, 4, 0, 0],   # NF1
+            [2, 0, 4, 0, 0, 7],   # NF2
+            [0, 0, 4, 2, 5, 0]    # NF3
+        ], index=["NF1", "NF2", "NF3"], columns=[f"EF{i+1}" for i in range(6)])
+    
+        # V matrix: v12=1, v13=3, v23=2
+        v_in = pd.DataFrame("", index=["NF1", "NF2", "NF3"], columns=["NF1", "NF2", "NF3"])
+        for r in range(3):
+            for c in range(3):
+                if r >= c: 
+                    v_in.iloc[r, c] = "auto-fill"
+        v_in.iloc[0, 1] = "1"
+        v_in.iloc[0, 2] = "3"
+        v_in.iloc[1, 2] = "2"
         st.session_state.v_input = v_in
         st.rerun()
-
 
     # --------------------------------------------------
     # 1. Problem Size Input
@@ -148,33 +152,19 @@ def build_inputs():
 
     col_m, col_n = st.sidebar.columns(2)
 
-    # Initialize session state for m and n if not present
-    if "m_val" not in st.session_state: st.session_state.m_val = 4
-    if "n_val" not in st.session_state: st.session_state.n_val = 2
-
-    # Note: We use keys 'm_input' and 'n_input' to sync with the example loader
     with col_m:
         m = st.number_input(
             "Number of Existing Facilities ($m$)",
             min_value=1, step=1,
-            value=st.session_state.m_val,
-            key="m_input"
+            key="m_input" # <-- Removed `value=`
         )
 
     with col_n:
         n = st.number_input(
             "Number of New Facilities ($n$)",
             min_value=1, step=1,
-            value=st.session_state.n_val,
-            key="n_input"
+            key="n_input" # <-- Removed `value=`
         )
-
-    # Detect change in dimensions to reset/resize tables
-    dims_changed = (m != st.session_state.m_val) or (n != st.session_state.n_val)
-
-    # Update state
-    st.session_state.m_val = m
-    st.session_state.n_val = n
 
     st.sidebar.caption("Adjusting $m$ or $n$ will resize tables below.")
 
@@ -183,8 +173,8 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.markdown("### Existing Facility Locations $(a_i,b_i)$")
 
-    # If dims changed or df missing, rebuild EF DataFrame
-    if dims_changed or "ef_df" not in st.session_state or len(st.session_state.ef_df) != m:
+    # Rebuild EF DataFrame if it doesn't match current 'm'
+    if "ef_df" not in st.session_state or len(st.session_state.ef_df) != m:
         st.session_state.ef_df = pd.DataFrame(
             {
                 "a_i (x-coordinate)": [10.0 * (i + 1) for i in range(m)],
@@ -209,13 +199,12 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.markdown("### EF–NF Interaction Weights $w_{ji}$")
 
-    # If dims changed or df missing, rebuild W DataFrame with UNEVEN weights
-    if dims_changed or "w_df" not in st.session_state or st.session_state.w_df.shape != (n, m):
+    # Rebuild W DataFrame if shape doesn't match (n, m)
+    if "w_df" not in st.session_state or st.session_state.w_df.shape != (n, m):
         new_w = []
         for r in range(n):
             row_vals = []
             for c in range(m):
-                # Pattern: (row + col + 1) * 3 % 9 + 1 -> creates values like 4, 7, 1...
                 val = ((r + c + 2) * 3) % 9 + 1 
                 row_vals.append(val)
             new_w.append(row_vals)
@@ -242,8 +231,8 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.markdown("### NF–NF Interaction Weights $v_{jk}$")
 
-    # If dims changed or df missing, rebuild V input with UNEVEN weights
-    if dims_changed or "v_input" not in st.session_state or st.session_state.v_input.shape != (n, n):
+    # Rebuild V input if shape doesn't match (n, n)
+    if "v_input" not in st.session_state or st.session_state.v_input.shape != (n, n):
         v_input = pd.DataFrame(
             "",
             index=[f"NF{j+1}" for j in range(n)],
@@ -257,8 +246,6 @@ def build_inputs():
                 elif j > k:
                     v_input.iloc[j, k] = "auto-fill"
                 else:
-                    # Fill upper triangle (j < k) with uneven pattern
-                    # Example pattern: ((j + k) * 5) % 15 + 2 -> values like 2, 7, 12...
                     val = ((j + k + 1) * 5) % 15 + 2
                     v_input.iloc[j, k] = str(val)
         
@@ -296,8 +283,8 @@ def build_inputs():
         "m": m,
         "n": n,
         "ef": ef_df,   # DataFrame: a_i, b_i
-        "w": w_df,    # DataFrame: w_ji
-        "v": v_df     # DataFrame: symmetric, v_jk with zero diagonal
+        "w": w_df,     # DataFrame: w_ji
+        "v": v_df      # DataFrame: symmetric, v_jk with zero diagonal
     }
 
 # =============================================================================

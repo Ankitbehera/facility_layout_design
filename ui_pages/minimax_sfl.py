@@ -14,9 +14,9 @@ def build_inputs():
     # --------------------------------------------------
     st.sidebar.header("Input Data")
 
-    # Initialize Session State Variables (Unique keys for Minimax SFL)
-    if "m_val_mm_sf" not in st.session_state: 
-        st.session_state.m_val_mm_sf = 5
+    # Initialize Session State Variables (Unique keys for Minimax SFL)    
+    if "m_input_mm_sf" not in st.session_state: 
+        st.session_state["m_input_mm_sf"] = 5
     if "uploaded_csv_id_mm_sf" not in st.session_state:
         st.session_state.uploaded_csv_id_mm_sf = None
 
@@ -40,8 +40,7 @@ def build_inputs():
         
         if load_ex1:
             m_new = 5
-            st.session_state.m_val_mm_sf = m_new
-            st.session_state["m_input_mm_sf"] = m_new
+            st.session_state["m_input_mm_sf"] = m_new  # Automatically updates the number_input
             st.session_state.mm_sf_df = pd.DataFrame({
                 "a (x-coord)": [4.0, 5.0, 13.0, 10.0, 4.0],
                 "b (y-coord)": [3.0, 11.0, 13.0, 6.0, 6.0]
@@ -50,7 +49,6 @@ def build_inputs():
 
         if load_ex2:
             m_new = 19
-            st.session_state.m_val_mm_sf = m_new
             st.session_state["m_input_mm_sf"] = m_new
             st.session_state.mm_sf_df = pd.DataFrame({
                 "a (x-coord)": [2.0, 2.0, 4.0, 4.0, 4.0, 6.0, 6.0, 6.0, 6.0, 8.0, 8.0, 10.0, 12.0, 12.0, 12.0, 12.0, 14.0, 14.0, 14.0],
@@ -61,7 +59,6 @@ def build_inputs():
 
         if load_ex3:
             m_new = 4
-            st.session_state.m_val_mm_sf = m_new
             st.session_state["m_input_mm_sf"] = m_new
             st.session_state.mm_sf_df = pd.DataFrame({
                 "a (x-coord)": [20.0, 25.0, 13.0, 25.0, 4.0, 18.0],
@@ -72,7 +69,6 @@ def build_inputs():
 
         if load_ex4:
             m_new = 12
-            st.session_state.m_val_mm_sf = m_new
             st.session_state["m_input_mm_sf"] = m_new
             st.session_state.mm_sf_df = pd.DataFrame({
                 "a (x-coord)": [0.0, 2.0, 3.0, 3.0, 4.0, 8.0, 9.0, 8.0, 7.0, 5.0, 4.0, 2.0],
@@ -113,7 +109,6 @@ def build_inputs():
                         df.index = [f"DP{i+1}" for i in range(m_new)]
                         
                         # Update session state with CSV data
-                        st.session_state.m_val_mm_sf = m_new
                         st.session_state["m_input_mm_sf"] = m_new
                         st.session_state.mm_sf_df = df
                         st.session_state.uploaded_csv_id_mm_sf = uploaded_file.file_id
@@ -137,15 +132,11 @@ def build_inputs():
         "Number of demand points ($m$)",
         min_value=1, 
         step=1,
-        value=st.session_state.m_val_mm_sf,
-        key="m_input_mm_sf"
+        key="m_input_mm_sf" # <--- Removed `value=` to fix Streamlit warning
     )
 
-    dims_changed = (m != st.session_state.m_val_mm_sf)
-    st.session_state.m_val_mm_sf = m
-
-    # If dimensions changed manually, or dataframe doesn't exist, rebuild a blank one
-    if dims_changed or "mm_sf_df" not in st.session_state or len(st.session_state.mm_sf_df) != m:
+    # If the widget value (m) doesn't match the dataframe length, rebuild a blank one
+    if "mm_sf_df" not in st.session_state or len(st.session_state.mm_sf_df) != m:
         st.session_state.mm_sf_df = pd.DataFrame({
             "a (x-coord)": [float(i + 1) for i in range(m)],
             "b (y-coord)": [float(i + 1) for i in range(m)]
