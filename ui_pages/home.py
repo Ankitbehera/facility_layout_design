@@ -8,9 +8,9 @@ def _go_to(page_name: str):
 
 
 def show_home():
-    st.title("Facility Location and Design App")
+    st.title("Facility Location and Allocation App")
     st.caption(
-        "An interactive learning platform for Facility Location and Design — "
+        "An interactive learning platform for Facility Location and Allocation — "
         "inspired by academic and classroom-based understanding at IIT Kharagpur"
     )
 
@@ -25,7 +25,7 @@ def show_home():
     with left_col:
         st.markdown(
             """
-            Facility Location and Design is a core subject in **Operations Research**
+            Facility Location and Allocation is a core subject in **Operations Research**
             and **Industrial & Systems Engineering**, concerned with determining
             optimal locations for facilities such as warehouses, manufacturing plants,
             hospitals, fire stations, and service centers. These decisions directly
@@ -36,8 +36,7 @@ def show_home():
             ### Objective of the Application
 
             This application serves as a **one-stop educational platform** for
-            understanding fundamental concepts in **Facility Layout
-            and Design**.
+            understanding fundamental concepts in **Facility Location and Allocation**.
 
             The app is primarily intended for **conceptual learning and academic
             exploration**. It is designed to work with **small datasets**, enabling 
