@@ -165,7 +165,7 @@ def show_minimax_sfl(data):
     # --------------------------------------------------
     # Page Title & Intro
     # --------------------------------------------------
-    st.title("Minimax/Maximin Single Facility Location Problem")
+    st.title("Minimax Single Facility Location Problem")
 
     # --------------------------------------------------
     # Tabs
